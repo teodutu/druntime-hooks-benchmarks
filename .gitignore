@@ -22,3 +22,9 @@ docs/
 
 # Code coverage
 *.lst
+
+# VSCode
+.vscode/
+
+# Output files
+*.txt
