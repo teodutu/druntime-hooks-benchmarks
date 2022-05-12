@@ -28,4 +28,5 @@ docs/
 
 # Output files
 *.txt
-benchmark
+array_benchmark
+

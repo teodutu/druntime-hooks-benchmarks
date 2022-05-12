@@ -21,23 +21,24 @@ function run_on_branch() {
 	echo -e "\n============================================================" >> $FILE;
 	echo "Testing branch: $BRANCH" >> $FILE;
 
-	# cd $DMD_PATH;
-	# git checkout $BRANCH;
-	# make -f posix.mak;
+	cd $DMD_PATH;
+	git checkout $BRANCH;
+	make -f posix.mak;
 
 	cd $CRT_PATH;
-	# TODO: clean up
 	CFLAGS="-release -O -boundscheck=off -version=$HOOK -I$HOOK/";
 	CC=~/dlang/dmd/generated/linux/release/64/dmd;
 
+	# TODO: clean up
 	# CFLAGS="$CFLAGS" CC=$CC make;
-	$CC $CFLAGS benchmark.d;
-	./benchmark >> $FILE;
-
-	# make clean;
+	$CC $CFLAGS array_benchmark.d;
+	./array_benchmark >> $FILE;
 }
 
-for i in {1..2}; do
+for i in {1..1000}; do
 	run_on_branch $HOOK_BRANCH;
 	run_on_branch "master";
 done
+
+cd $CRT_PATH
+make clean

@@ -1,4 +1,4 @@
-module benchmark;
+module array_benchmark;
 
 import std.stdio : writeln;
 import std.datetime.stopwatch : benchmark;

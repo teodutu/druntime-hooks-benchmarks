@@ -1,5 +1,5 @@
 CFLAGS ?= -release -O -boundscheck=off
-BENCHMARK=benchmark
+BENCHMARK = array_benchmark
 
 all: $(BENCHMARK).d
 	$(CC) $(CFLAGS) $(BENCHMARK).d
