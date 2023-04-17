@@ -13,6 +13,14 @@ version (_d_arrayappendT)
 {
 	import _d_arrayappendT : GenTest;
 }
+version (_d_arraycatT)
+{
+	import _d_arraycatT : GenTest;
+}
+version (_d_arraycatnTX)
+{
+	import _d_arraycatnTX : GenTest;
+}
 
 template GenStruct(string Size, string Var, string Buf)
 {

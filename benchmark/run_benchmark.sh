@@ -11,6 +11,7 @@ HOOK_BRANCH=$2
 FILE=$3	
 
 DMD_PATH=~/dlang/dmd
+PHOBOS_PATH=$(DMD_PATH)/../phobos
 CRT_PATH=$(pwd)
 
 source $DMD_PATH-2.099.1/activate
@@ -23,7 +24,10 @@ function run_on_branch() {
 
 	cd $DMD_PATH;
 	git checkout $BRANCH;
-	make -f posix.mak;
+	make -f posix.mak -C compiler/src -j8;
+
+	cd $PHOBOS_PATH;
+	make -f posix.mak -j8;
 
 	cd $CRT_PATH;
 	CFLAGS="-release -O -boundscheck=off -version=$HOOK -I$HOOK/";
@@ -35,7 +39,7 @@ function run_on_branch() {
 	./array_benchmark >> $FILE;
 }
 
-for i in {1..1000}; do
+for i in {1..5}; do
 	run_on_branch $HOOK_BRANCH;
 	run_on_branch "master";
 done
