@@ -5,22 +5,11 @@ import std.datetime.stopwatch : benchmark;
 import std.math : sqrt;
 import std.algorithm : reduce;
 
-version (_d_arrayctor)
-{
-	import _d_arrayctor : GenTest;
-}
-version (_d_arrayappendT)
-{
-	import _d_arrayappendT : GenTest;
-}
-version (_d_arraycatT)
-{
-	import _d_arraycatT : GenTest;
-}
-version (_d_arraycatnTX)
-{
-	import _d_arraycatnTX : GenTest;
-}
+enum hooks = ["_d_arrayctor", "_d_arrayappendT", "_d_arraycatT",
+    "_d_arraycatnTX", "_d_newarrayT"];
+
+static foreach (hook; hooks)
+    mixin("version (" ~ hook ~ ") import " ~ hook ~ " : GenTest;");
 
 template GenStruct(string Size, string Var, string Buf)
 {
@@ -31,11 +20,12 @@ template GenStruct(string Size, string Var, string Buf)
 }
 
 mixin(GenStruct!("0", "s", ""));
-mixin(GenStruct!("64", "m", "char[64] x;"));
-mixin(GenStruct!("256", "l", "char[256] x;"));
+mixin(GenStruct!("64", "m", "char[64] x = 1;"));
+mixin(GenStruct!("256", "l", "char[256] x = 1;"));
 
 
-static immutable sizes = ["_1Elem", "_64Elems", "_256Elems"];
+static immutable sizes = ["1", "64", "256"];
+static immutable sizesElems = ["_1Elems", "_64Elems", "_256Elems"];
 static immutable structs = ["_0B_Struct", "_64B_Struct", "_256B_Struct"];
 static immutable letters = ["s", "m", "l"];
 
@@ -60,6 +50,6 @@ void runTest(void function() func, string funcName, uint runs)
 void main()
 {
     static foreach (st; structs)
-        static foreach (i, sz; sizes)
+        static foreach (i, sz; sizesElems)
             mixin("runTest(&test" ~ st ~ sz ~ ", \"" ~ st ~ sz ~ "\", 1_000_000U);");
 }

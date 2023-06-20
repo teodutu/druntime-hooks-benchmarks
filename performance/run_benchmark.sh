@@ -11,10 +11,11 @@ HOOK_BRANCH=$2
 FILE=$3	
 
 DMD_PATH=~/dlang/dmd
-PHOBOS_PATH=$(DMD_PATH)/../phobos
+PHOBOS_PATH=$DMD_PATH/../phobos
 CRT_PATH=$(pwd)
 
-source $DMD_PATH-2.099.1/activate
+DMD_DIR=$(find $DMD_PATH/.. -maxdepth 1 -type d -name "dmd-2.*")
+source $DMD_DIR/activate
 
 function run_on_branch() {
 	BRANCH=$1
@@ -24,9 +25,11 @@ function run_on_branch() {
 
 	cd $DMD_PATH;
 	git checkout $BRANCH;
+	make clean;
 	make -f posix.mak -C compiler/src -j8;
 
 	cd $PHOBOS_PATH;
+	make clean;
 	make -f posix.mak -j8;
 
 	cd $CRT_PATH;
