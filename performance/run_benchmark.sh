@@ -72,7 +72,7 @@ else
 	echo "no branch";
 	cd $DMD_PATH;
 	git checkout master
-	hook_commit=$(git log --grep=$HOOK | head -n 1 | cut -d ' ' -f 2);
+	hook_commit=$(git log --grep="Translate `$HOOK" | head -n 1 | cut -d ' ' -f 2);
 	test_hook "$hook_commit^" $hook_commit;
 fi
 
