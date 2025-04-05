@@ -6,7 +6,7 @@ import std.math : sqrt;
 import std.algorithm : reduce;
 
 enum hooks = ["_d_arrayctor", "_d_arrayappendT", "_d_arraycatT",
-    "_d_arraycatnTX", "_d_arrayassign", "_d_newarrayT"];
+    "_d_arraycatnTX", "_d_arrayassign", "_d_newarrayT", "_d_arraysetcapacity"];
 
 static foreach (hook; hooks)
     mixin("version (" ~ hook ~ ") import " ~ hook ~ " : GenTest;");
