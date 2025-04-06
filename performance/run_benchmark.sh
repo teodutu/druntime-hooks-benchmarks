@@ -47,6 +47,12 @@ function sync_repos() {
 	make clean &> /dev/null;
 	make -j$(nproc) &> /dev/null;
 	git checkout $cur_branch
+
+	libphobos2_a_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.a)
+	libphobos2_so_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.so)
+
+	echo "libphobos2.a size: $libphobos2_a_bytes B / $((libphobos2_a_bytes / 1024)) KiB / $((libphobos2_a_bytes / 1024 / 1024)) MiB"
+	echo "libphobos2.so size: $libphobos2_so_bytes B / $((libphobos2_so_bytes / 1024)) KiB / $((libphobos2_so_bytes / 1024 / 1024)) MiB"
 }
 
 function test_commit() {
@@ -69,11 +75,13 @@ function test_hook() {
 	for i in {1..5}; do
 		echo -e "\n============================================================" >> $FILE;
 		echo "Testing non-template hook - Commit: ${baseline_commit}" >> $FILE;
-		test_commit $baseline_commit;
+		libphobos2_sizes=$(test_commit $baseline_commit | grep "libphobos2");
+		echo "$libphobos2_sizes" >> $FILE;
 
 		echo -e "\n============================================================" >> $FILE;
 		echo "Testing template hook - Commit: ${hook_commit}" >> $FILE;
-		test_commit $hook_commit;
+		libphobos2_sizes=$(test_commit $hook_commit | grep "libphobos2");
+		echo "$libphobos2_sizes" >> $FILE;
 	done
 }
 
