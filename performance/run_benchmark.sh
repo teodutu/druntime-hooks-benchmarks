@@ -38,14 +38,14 @@ function sync_repos() {
 	cur_branch=$(git rev-parse --abbrev-ref HEAD)
     git checkout $commit_sha;
     make -f posix.mak clean &> /dev/null;
-	make -f posix.mak -C compiler/src -j8 &> /dev/null;
+	make -f posix.mak -C compiler/src -j$(nproc) &> /dev/null;
 	git checkout $cur_branch
 
 	cd $PHOBOS_PATH;
 	cur_branch=$(git rev-parse --abbrev-ref HEAD)
     git checkout "master@{$commit_date}";
 	make -f posix.mak clean &> /dev/null;
-	make -f posix.mak -j8 &> /dev/null;
+	make -f posix.mak -j$(nproc) &> /dev/null;
 	git checkout $cur_branch
 }
 
