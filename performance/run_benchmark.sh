@@ -29,24 +29,34 @@ CRT_PATH=$(pwd)
 DMD_DIR=$(find $DMD_PATH/.. -maxdepth 1 -type d -name "dmd-2.*")
 source $DMD_DIR/activate
 
+function get_current_branch() {
+	git_path=$1
+	cd $git_path
+	cur_branch=$(git rev-parse --abbrev-ref HEAD)
+	echo $cur_branch
+}
+
+function restore_branch() {
+	git_path=$1
+	cur_branch=$2
+	cd $git_path
+	git checkout $cur_branch
+}
+
 function sync_repos() {
 	commit_sha=$1;
 
     cd $DMD_PATH;
     commit_date=$(git show -s --format=%ci $commit_sha);
 
-	cur_branch=$(git rev-parse --abbrev-ref HEAD)
     git checkout $commit_sha;
     make clean &> /dev/null;
 	make -j$(nproc) &> /dev/null;
-	git checkout $cur_branch
 
 	cd $PHOBOS_PATH;
-	cur_branch=$(git rev-parse --abbrev-ref HEAD)
     git checkout "master@{$commit_date}";
 	make clean &> /dev/null;
 	make -j$(nproc) &> /dev/null;
-	git checkout $cur_branch
 
 	libphobos2_a_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.a)
 	libphobos2_so_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.so)
@@ -72,6 +82,9 @@ function test_hook() {
 	baseline_commit=$1;
 	hook_commit=$2;
 
+	cur_dmd_branch=$(get_current_branch $DMD_PATH);
+	cur_phobos_branch=$(get_current_branch $PHOBOS_PATH);
+
 	for i in {1..5}; do
 		echo -e "\n============================================================" >> $FILE;
 		echo "Testing non-template hook - Commit: ${baseline_commit}" >> $FILE;
@@ -83,6 +96,9 @@ function test_hook() {
 		libphobos2_sizes=$(test_commit $hook_commit | grep "libphobos2");
 		echo "$libphobos2_sizes" >> $FILE;
 	done
+
+	restore_branch $DMD_PATH $cur_dmd_branch
+	restore_branch $PHOBOS_PATH $cur_phobos_branch
 }
 
 if [ $HOOK_BRANCH != "" ]; then
