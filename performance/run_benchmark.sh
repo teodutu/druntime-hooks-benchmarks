@@ -8,10 +8,18 @@ if [ $# -ne 3 ] && [ $# -ne 2 ]; then
 	exit 1
 fi
 
+declare -A HOOKS_TEMPLATE_COMMITS
+HOOKS_TEMPLATE_COMMITS["_d_arraysetcapacity"]="b28d1dbdf6244f09b85a73b70a05a46580d42163"
+
+declare -A HOOKS_NON_TEMPLATE_COMMITS
+HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="3106359a2b9f206ef69917ccc10bb01f1ad807ca"
+
 HOOK=$1
 FILE=$2
-if [[ $# -ne 3 ]]; then
+if [[ $# -eq 3 ]]; then
 	HOOK_BRANCH=$3
+elif [[ -v HOOKS_TEMPLATE_COMMITS[$HOOK] ]]; then
+	HOOK_BRANCH=${HOOKS_TEMPLATE_COMMITS[$HOOK]}
 fi
 
 DMD_PATH=~/dlang/dmd
@@ -27,14 +35,18 @@ function sync_repos() {
     cd $DMD_PATH;
     commit_date=$(git show -s --format=%ci $commit_sha);
 
+	cur_branch=$(git rev-parse --abbrev-ref HEAD)
     git checkout $commit_sha;
     make -f posix.mak clean &> /dev/null;
 	make -f posix.mak -C compiler/src -j8 &> /dev/null;
+	git checkout $cur_branch
 
 	cd $PHOBOS_PATH;
+	cur_branch=$(git rev-parse --abbrev-ref HEAD)
     git checkout "master@{$commit_date}";
 	make -f posix.mak clean &> /dev/null;
 	make -f posix.mak -j8 &> /dev/null;
+	git checkout $cur_branch
 }
 
 function test_commit() {
@@ -56,23 +68,24 @@ function test_hook() {
 
 	for i in {1..5}; do
 		echo -e "\n============================================================" >> $FILE;
-		echo "Testing non-template hook" >> $FILE;
+		echo "Testing non-template hook - Commit: ${baseline_commit}" >> $FILE;
 		test_commit $baseline_commit;
 
 		echo -e "\n============================================================" >> $FILE;
-		echo "Testing template hook" >> $FILE;
+		echo "Testing template hook - Commit: ${hook_commit}" >> $FILE;
 		test_commit $hook_commit;
 	done
 }
 
-if [[ $HOOK_BRANCH -ne "" ]]; then
+if [ $HOOK_BRANCH != "" ]; then
 	echo "branch";
-	test_hook "master" $HOOK_BRANCH
+	base_branch=${HOOKS_NON_TEMPLATE_COMMITS[$HOOK]:-"master"}
+	test_hook $base_branch $HOOK_BRANCH
 else
 	echo "no branch";
 	cd $DMD_PATH;
 	git checkout master
-	hook_commit=$(git log --grep="Translate `$HOOK" | head -n 1 | cut -d ' ' -f 2);
+	hook_commit=$(git log --grep="Translate $HOOK" | head -n 1 | cut -d ' ' -f 2);
 	test_hook "$hook_commit^" $hook_commit;
 fi
 
