@@ -9,10 +9,10 @@ if [ $# -ne 3 ] && [ $# -ne 2 ]; then
 fi
 
 declare -A HOOKS_TEMPLATE_COMMITS
-HOOKS_TEMPLATE_COMMITS["_d_arraysetcapacity"]="b28d1dbdf6244f09b85a73b70a05a46580d42163"
+HOOKS_TEMPLATE_COMMITS["_d_arraysetcapacity"]="03c8f2723f0e2b76b9faea9814b202420b81d8e8"
 
 declare -A HOOKS_NON_TEMPLATE_COMMITS
-HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="3106359a2b9f206ef69917ccc10bb01f1ad807ca"
+HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="513293b0d8e7e19725af5619566670733561fc52"
 
 HOOK=$1
 FILE=$2
