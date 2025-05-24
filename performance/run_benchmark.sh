@@ -44,19 +44,19 @@ function restore_branch() {
 }
 
 function sync_repos() {
-	commit_sha=$1;
+	commit_sha=$1
 
-    cd $DMD_PATH;
-    commit_date=$(git show -s --format=%ci $commit_sha);
+	cd $DMD_PATH
+	commit_date=$(git show -s --format=%ci $commit_sha)
 
-    git checkout $commit_sha;
-    make clean &> /dev/null;
-	make -j$(nproc) &> /dev/null;
+	git checkout $commit_sha
+	make clean &>/dev/null
+	make -j$(nproc) &>/dev/null
 
-	cd $PHOBOS_PATH;
-    git checkout "master@{$commit_date}";
-	make clean &> /dev/null;
-	make -j$(nproc) &> /dev/null;
+	cd $PHOBOS_PATH
+	git checkout "master@{$commit_date}"
+	make clean &>/dev/null
+	make -j$(nproc) &>/dev/null
 
 	libphobos2_a_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.a)
 	libphobos2_so_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.so)
@@ -66,35 +66,35 @@ function sync_repos() {
 }
 
 function test_commit() {
-	sync_repos $1;
+	sync_repos $1
 
-	cd $CRT_PATH;
-	CFLAGS="-release -O -boundscheck=off -version=$HOOK -I$HOOK/";
-	CC=~/dlang/dmd/generated/linux/release/64/dmd;
+	cd $CRT_PATH
+	CFLAGS="-release -O -boundscheck=off -version=$HOOK -I$HOOK/"
+	CC=~/dlang/dmd/generated/linux/release/64/dmd
 
 	# TODO: clean up
 	# CFLAGS="$CFLAGS" CC=$CC make;
-	$CC $CFLAGS array_benchmark.d;
-	./array_benchmark >> $FILE;
+	$CC $CFLAGS array_benchmark.d
+	./array_benchmark >>$FILE
 }
 
 function test_hook() {
-	baseline_commit=$1;
-	hook_commit=$2;
+	baseline_commit=$1
+	hook_commit=$2
 
-	cur_dmd_branch=$(get_current_branch $DMD_PATH);
-	cur_phobos_branch=$(get_current_branch $PHOBOS_PATH);
+	cur_dmd_branch=$(get_current_branch $DMD_PATH)
+	cur_phobos_branch=$(get_current_branch $PHOBOS_PATH)
 
 	for i in {1..5}; do
-		echo -e "\n============================================================" >> $FILE;
-		echo "Testing non-template hook - Commit: ${baseline_commit}" >> $FILE;
-		libphobos2_sizes=$(test_commit $baseline_commit | grep "libphobos2");
-		echo "$libphobos2_sizes" >> $FILE;
+		echo -e "\n============================================================" >>$FILE
+		echo "Testing non-template hook - Commit: ${baseline_commit}" >>$FILE
+		libphobos2_sizes=$(test_commit $baseline_commit | grep "libphobos2")
+		echo "$libphobos2_sizes" >>$FILE
 
-		echo -e "\n============================================================" >> $FILE;
-		echo "Testing template hook - Commit: ${hook_commit}" >> $FILE;
-		libphobos2_sizes=$(test_commit $hook_commit | grep "libphobos2");
-		echo "$libphobos2_sizes" >> $FILE;
+		echo -e "\n============================================================" >>$FILE
+		echo "Testing template hook - Commit: ${hook_commit}" >>$FILE
+		libphobos2_sizes=$(test_commit $hook_commit | grep "libphobos2")
+		echo "$libphobos2_sizes" >>$FILE
 	done
 
 	restore_branch $DMD_PATH $cur_dmd_branch
@@ -102,15 +102,15 @@ function test_hook() {
 }
 
 if [ $HOOK_BRANCH != "" ]; then
-	echo "branch";
+	echo "branch"
 	base_branch=${HOOKS_NON_TEMPLATE_COMMITS[$HOOK]:-"master"}
 	test_hook $base_branch $HOOK_BRANCH
 else
-	echo "no branch";
-	cd $DMD_PATH;
+	echo "no branch"
+	cd $DMD_PATH
 	git checkout master
-	hook_commit=$(git log --grep="Translate $HOOK" | head -n 1 | cut -d ' ' -f 2);
-	test_hook "$hook_commit^" $hook_commit;
+	hook_commit=$(git log --grep="Translate $HOOK" | head -n 1 | cut -d ' ' -f 2)
+	test_hook "$hook_commit^" $hook_commit
 fi
 
 cd $CRT_PATH
