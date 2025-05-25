@@ -14,6 +14,10 @@ HOOKS_TEMPLATE_COMMITS["_d_arraysetcapacity"]="03c8f2723f0e2b76b9faea9814b202420
 declare -A HOOKS_NON_TEMPLATE_COMMITS
 HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="513293b0d8e7e19725af5619566670733561fc52"
 
+declare -A druntime_a_size
+declare -A phobos2_a_size
+declare -A phobos2_so_size
+
 HOOK=$1
 FILE=$2
 if [[ $# -eq 3 ]]; then
@@ -28,6 +32,16 @@ CRT_PATH=$(pwd)
 
 DMD_DIR=$(find $DMD_PATH/.. -maxdepth 1 -type d -name "dmd-2.*")
 source $DMD_DIR/activate
+
+function set_if_unset() {
+	local -n map_name=$1
+	key=$2
+	value=$3
+
+	if [[ -z ${!map_name[$key]} ]]; then
+		map_name[$key]=$value
+	fi
+}
 
 function get_current_branch() {
 	git_path=$1
@@ -53,16 +67,19 @@ function sync_repos() {
 	make clean &>/dev/null
 	make -j$(nproc) &>/dev/null
 
+	druntime_a_bytes=$(stat -Lc %s generated/linux/release/64/libdruntime.a)
+	set_if_unset druntime_a_size "$commit_sha" "$druntime_a_bytes"
+
 	cd $PHOBOS_PATH
 	git checkout "master@{$commit_date}"
 	make clean &>/dev/null
 	make -j$(nproc) &>/dev/null
 
 	libphobos2_a_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.a)
-	libphobos2_so_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.so)
+	set_if_unset phobos2_a_size "$commit_sha" "$libphobos2_a_bytes"
 
-	echo "libphobos2.a size: $libphobos2_a_bytes B / $((libphobos2_a_bytes / 1024)) KiB / $((libphobos2_a_bytes / 1024 / 1024)) MiB"
-	echo "libphobos2.so size: $libphobos2_so_bytes B / $((libphobos2_so_bytes / 1024)) KiB / $((libphobos2_so_bytes / 1024 / 1024)) MiB"
+	libphobos2_so_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.so)
+	set_if_unset phobos2_so_size "$commit_sha" "$libphobos2_so_bytes"
 }
 
 function test_commit() {
@@ -88,14 +105,17 @@ function test_hook() {
 	for i in {1..5}; do
 		echo -e "\n============================================================" >>$FILE
 		echo "Testing non-template hook - Commit: ${baseline_commit}" >>$FILE
-		libphobos2_sizes=$(test_commit $baseline_commit | grep "libphobos2")
-		echo "$libphobos2_sizes" >>$FILE
+		test_commit $baseline_commit
 
 		echo -e "\n============================================================" >>$FILE
 		echo "Testing template hook - Commit: ${hook_commit}" >>$FILE
-		libphobos2_sizes=$(test_commit $hook_commit | grep "libphobos2")
-		echo "$libphobos2_sizes" >>$FILE
+		test_commit $hook_commit
 	done
+
+	echo "============================================================" >>$FILE
+	echo "libdruntime.a size: old=${druntime_a_size[$baseline_commit]} B / new=${druntime_a_size[$hook_commit]} B" >>$FILE
+	echo "libphobos2.a size: old=${phobos2_a_size[$baseline_commit]} B / new=${phobos2_a_size[$hook_commit]} B" >>$FILE
+	echo "libphobos2.so size: old=${phobos2_so_size[$baseline_commit]} B / new=${phobos2_so_size[$hook_commit]} B" >>$FILE
 
 	restore_branch $DMD_PATH $cur_dmd_branch
 	restore_branch $PHOBOS_PATH $cur_phobos_branch
