@@ -71,7 +71,7 @@ function sync_repos() {
 	set_if_unset druntime_a_size "$commit_sha" "$druntime_a_bytes"
 
 	cd $PHOBOS_PATH
-	git checkout "master@{$commit_date}"
+	git checkout $(git rev-list -n 1 --before="$commit_date" master)
 	make clean &>/dev/null
 	make -j$(nproc) &>/dev/null
 
