@@ -87,7 +87,7 @@ function test_commit() {
 
 	cd $CRT_PATH
 	CFLAGS="-release -O -boundscheck=off -version=$HOOK -I$HOOK/"
-	CC=~/dlang/dmd/generated/linux/release/64/dmd
+	CC=$DMD_PATH/generated/linux/release/64/dmd
 
 	# TODO: clean up
 	# CFLAGS="$CFLAGS" CC=$CC make;
