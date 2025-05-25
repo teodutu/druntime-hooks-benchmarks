@@ -6,3 +6,4 @@ template GenTest(string Struct, string Size, string arr)
         } ~ Struct ~ "[] a;" ~ q{
         } ~ "a.reserve(" ~ Size ~ "); }";
 }
+
