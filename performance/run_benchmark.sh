@@ -59,6 +59,7 @@ function restore_branch() {
 
 function sync_repos() {
 	commit_sha=$1
+	skip_phobos=${2:-false}
 
 	cd $DMD_PATH
 	commit_date=$(git show -s --format=%ci $commit_sha)
@@ -73,6 +74,11 @@ function sync_repos() {
 	cd $PHOBOS_PATH
 	git checkout $(git rev-list -n 1 --before="$commit_date" master)
 	make clean &>/dev/null
+
+	if [[ $skip_phobos == true ]]; then
+		return
+	fi
+
 	make -j$(nproc) &>/dev/null
 
 	libphobos2_a_bytes=$(stat -Lc %s generated/linux/release/64/libphobos2.a)
@@ -95,6 +101,23 @@ function test_commit() {
 	./array_benchmark >>$FILE
 }
 
+function compilation_bench() {
+	commit_sha=$1
+
+	sync_repos $commit_sha true
+
+	cd $PHOBOS_PATH
+
+	perf_out=$(perf stat -r 100 bash -c "(make clean && make $DMD_PATH/druntime clean && make -j$(nproc)) &>/dev/null" 2>&1 | tail -n2 | head -n1)
+
+	avg_time=$(echo $perf_out | awk '{print $1}')
+	stddev=$(echo $perf_out | awk '{print $3}')
+	stddev_percent=$(echo $perf_out | awk '{print $(NF-1)}')
+
+	cd $CRT_PATH
+	echo "Average time: $avg_time seconds, Standard deviation: $stddev (+- $stddev_percent) seconds" >>$FILE
+}
+
 function test_hook() {
 	baseline_commit=$1
 	hook_commit=$2
@@ -111,6 +134,14 @@ function test_hook() {
 		echo "Testing template hook - Commit: ${hook_commit}" >>$FILE
 		test_commit $hook_commit
 	done
+
+	echo -e "\n============================================================" >>$FILE
+	echo "Compilation performance non-template hook - Commit: ${baseline_commit}" >>$FILE
+	compilation_bench $baseline_commit
+
+	echo -e "\n============================================================" >>$FILE
+	echo "Compilation performance template hook - Commit: ${hook_commit}" >>$FILE
+	compilation_bench $hook_commit
 
 	echo "============================================================" >>$FILE
 	echo "libdruntime.a size: old=${druntime_a_size[$baseline_commit]} B / new=${druntime_a_size[$hook_commit]} B" >>$FILE
