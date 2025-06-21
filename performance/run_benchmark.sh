@@ -9,10 +9,18 @@ if [ $# -ne 3 ] && [ $# -ne 2 ]; then
 fi
 
 declare -A HOOKS_TEMPLATE_COMMITS
-HOOKS_TEMPLATE_COMMITS["_d_arraysetcapacity"]="03c8f2723f0e2b76b9faea9814b202420b81d8e8"
+HOOKS_TEMPLATE_COMMITS["_d_arraysetcapacity"]="master"
+HOOKS_TEMPLATE_COMMITS["_d_dynamic_cast"]="47c7321477ae8d97f881efa6a3de360da4f4a6d3"
+HOOKS_TEMPLATE_COMMITS["_d_paint_cast"]="9e7f0af277b7762efa6ae1a3a35a0b6cb7257d17"
+HOOKS_TEMPLATE_COMMITS["_d_class_cast"]="e0f222194cd412f71b2b4eabfef966f90849ce36"
+HOOKS_TEMPLATE_COMMITS["_d_interface_cast"]="6e8eb081cfa3cb58f1b308cb290ca8f364666cfd"
 
 declare -A HOOKS_NON_TEMPLATE_COMMITS
-HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="513293b0d8e7e19725af5619566670733561fc52"
+HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="master"
+HOOKS_NON_TEMPLATE_COMMITS["_d_dynamic_cast"]="99a390f3c6bae3b30c469222a9846273d300c407"
+HOOKS_NON_TEMPLATE_COMMITS["_d_paint_cast"]="8762d1eaee42119269b82a1b1b7063c89c1e6a69"
+HOOKS_NON_TEMPLATE_COMMITS["_d_class_cast"]="d234a544f13ee7293fc8108a0aba29685ae1ac38"
+HOOKS_NON_TEMPLATE_COMMITS["_d_interface_cast"]="9f573c494acc38855027462bde162fabea9cf33f"
 
 declare -A druntime_a_size
 declare -A phobos2_a_size
@@ -118,6 +126,19 @@ function compilation_bench() {
 	echo "Average time: $avg_time seconds, Standard deviation: $stddev (+- $stddev_percent) seconds" >>$FILE
 }
 
+function compute_percentage_change() {
+	old_value=$1
+	new_value=$2
+
+	if [[ $old_value -eq 0 ]]; then
+		echo "N/A"
+		return
+	fi
+
+	change=$(awk "BEGIN {printf \"%.2f\", (($new_value - $old_value) / $old_value) * 100}")
+	echo "$change%"
+}
+
 function test_hook() {
 	baseline_commit=$1
 	hook_commit=$2
@@ -143,10 +164,19 @@ function test_hook() {
 	echo "Compilation performance template hook - Commit: ${hook_commit}" >>$FILE
 	compilation_bench $hook_commit
 
-	echo "============================================================" >>$FILE
-	echo "libdruntime.a size: old=${druntime_a_size[$baseline_commit]} B / new=${druntime_a_size[$hook_commit]} B" >>$FILE
-	echo "libphobos2.a size: old=${phobos2_a_size[$baseline_commit]} B / new=${phobos2_a_size[$hook_commit]} B" >>$FILE
-	echo "libphobos2.so size: old=${phobos2_so_size[$baseline_commit]} B / new=${phobos2_so_size[$hook_commit]} B" >>$FILE
+	druntime_a_size_old=${druntime_a_size[$baseline_commit]}
+	druntime_a_size_new=${druntime_a_size[$hook_commit]}
+
+	phobos2_a_size_old=${phobos2_a_size[$baseline_commit]}
+	phobos2_a_size_new=${phobos2_a_size[$hook_commit]}
+
+	phobos2_so_size_old=${phobos2_so_size[$baseline_commit]}
+	phobos2_so_size_new=${phobos2_so_size[$hook_commit]}
+
+	echo -e "\n============================================================" >>$FILE
+	echo "libdruntime.a size: old=${druntime_a_size_old} B / new=${druntime_a_size_new} B => $(compute_percentage_change $druntime_a_size_old $druntime_a_size_new) change" >>$FILE
+	echo "libphobos2.a size: old=${phobos2_a_size_old} B / new=${phobos2_a_size_new} B => $(compute_percentage_change $phobos2_a_size_old $phobos2_a_size_new) change" >>$FILE
+	echo "libphobos2.so size: old=${phobos2_so_size_old} B / new=${phobos2_so_size_new} B => $(compute_percentage_change $phobos2_so_size_old $phobos2_so_size_new) change" >>$FILE
 
 	restore_branch $DMD_PATH $cur_dmd_branch
 	restore_branch $PHOBOS_PATH $cur_phobos_branch
