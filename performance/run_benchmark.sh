@@ -14,6 +14,9 @@ HOOKS_TEMPLATE_COMMITS["_d_dynamic_cast"]="47c7321477ae8d97f881efa6a3de360da4f4a
 HOOKS_TEMPLATE_COMMITS["_d_paint_cast"]="9e7f0af277b7762efa6ae1a3a35a0b6cb7257d17"
 HOOKS_TEMPLATE_COMMITS["_d_class_cast"]="e0f222194cd412f71b2b4eabfef966f90849ce36"
 HOOKS_TEMPLATE_COMMITS["_d_interface_cast"]="6e8eb081cfa3cb58f1b308cb290ca8f364666cfd"
+HOOKS_TEMPLATE_COMMITS["_adEq2_equals"]="ad35200fe3bb6b7f6a9e08bd2d83bc4857cd441e"
+HOOKS_TEMPLATE_COMMITS["_adEq2_memcmp"]="ad35200fe3bb6b7f6a9e08bd2d83bc4857cd441e"
+HOOKS_TEMPLATE_COMMITS["__equals_memcmp"]="ad35200fe3bb6b7f6a9e08bd2d83bc4857cd441e"
 
 declare -A HOOKS_NON_TEMPLATE_COMMITS
 HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="master"
@@ -21,6 +24,9 @@ HOOKS_NON_TEMPLATE_COMMITS["_d_dynamic_cast"]="99a390f3c6bae3b30c469222a9846273d
 HOOKS_NON_TEMPLATE_COMMITS["_d_paint_cast"]="8762d1eaee42119269b82a1b1b7063c89c1e6a69"
 HOOKS_NON_TEMPLATE_COMMITS["_d_class_cast"]="d234a544f13ee7293fc8108a0aba29685ae1ac38"
 HOOKS_NON_TEMPLATE_COMMITS["_d_interface_cast"]="9f573c494acc38855027462bde162fabea9cf33f"
+HOOKS_NON_TEMPLATE_COMMITS["_adEq2_equals"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
+HOOKS_NON_TEMPLATE_COMMITS["_adEq2_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
+HOOKS_NON_TEMPLATE_COMMITS["__equals_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 
 declare -A druntime_a_size
 declare -A phobos2_a_size
