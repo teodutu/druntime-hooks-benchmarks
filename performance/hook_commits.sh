@@ -1,5 +1,7 @@
 #!/bin/bash
 
+_aa_hooks=("_aaGetHash" "_aaEqual" "_aaKeys" "_aaDel" "_aaIn" "_aaGetX" "_aaDup" "_d_assocarrayliteralTX")
+
 declare -A DMD_TEMPLATED_COMMIT
 DMD_TEMPLATED_COMMIT["_d_arrayctor"]="71839d3ced6a26667f323769f35bbbfcb17f2e32"
 DMD_TEMPLATED_COMMIT["_d_arrayappendT"]="a2ebf9a66a4a1d2200cadb755b1740680a7890eb"
@@ -35,6 +37,11 @@ DMD_NON_TEMPLATED_COMMIT["_adEq2_equals"]="e0cf19144f2afed531cc2f40eee7e051994d4
 DMD_NON_TEMPLATED_COMMIT["_adEq2_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 DMD_NON_TEMPLATED_COMMIT["__equals_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 DMD_NON_TEMPLATED_COMMIT["_d_arrayliteralTX"]="9749967b599870b2fdeb2744a3003e5cddf16242"
+
+for hook in "${_aa_hooks[@]}"; do
+  DMD_TEMPLATED_COMMIT[$hook]="d8a6f8761477f062c75d17707ad8c7d0ccb8598d"
+  DMD_NON_TEMPLATED_COMMIT[$hook]="941545f298c6f081577568f32a4905aa40571d29"
+done
 
 declare -A LDC_TEMPLATED_COMMIT
 LDC_TEMPLATED_COMMIT["_d_arrayctor"]="222f4df3561370fd1f0b720ed64ec538bb333a65"
