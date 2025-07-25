@@ -17,6 +17,7 @@ HOOKS_TEMPLATE_COMMITS["_d_interface_cast"]="6e8eb081cfa3cb58f1b308cb290ca8f3646
 HOOKS_TEMPLATE_COMMITS["_adEq2_equals"]="ad35200fe3bb6b7f6a9e08bd2d83bc4857cd441e"
 HOOKS_TEMPLATE_COMMITS["_adEq2_memcmp"]="ad35200fe3bb6b7f6a9e08bd2d83bc4857cd441e"
 HOOKS_TEMPLATE_COMMITS["__equals_memcmp"]="ad35200fe3bb6b7f6a9e08bd2d83bc4857cd441e"
+HOOKS_TEMPLATE_COMMITS["_d_arrayliteralTX"]="c2c8189599b894771393100ceae1ca2da30202d0"
 
 declare -A HOOKS_NON_TEMPLATE_COMMITS
 HOOKS_NON_TEMPLATE_COMMITS["_d_arraysetcapacity"]="master"
@@ -27,6 +28,7 @@ HOOKS_NON_TEMPLATE_COMMITS["_d_interface_cast"]="9f573c494acc38855027462bde162fa
 HOOKS_NON_TEMPLATE_COMMITS["_adEq2_equals"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 HOOKS_NON_TEMPLATE_COMMITS["_adEq2_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 HOOKS_NON_TEMPLATE_COMMITS["__equals_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
+HOOKS_NON_TEMPLATE_COMMITS["_d_arrayliteralTX"]="9749967b599870b2fdeb2744a3003e5cddf16242"
 
 declare -A druntime_a_size
 declare -A phobos2_a_size
