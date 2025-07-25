@@ -8,7 +8,9 @@ import std.algorithm : reduce;
 enum hooks = ["_d_arrayctor", "_d_arrayappendT", "_d_arraycatT",
     "_d_arraycatnTX", "_d_arrayassign", "_d_newarrayT", "_d_arraysetcapacity",
     "_d_dynamic_cast", "_d_paint_cast", "_d_class_cast", "_d_interface_cast",
-    "_adEq2_memcmp", "_adEq2_equals", "__equals_memcmp", "_d_arrayliteralTX"];
+    "_adEq2_memcmp", "_adEq2_equals", "__equals_memcmp", "_d_arrayliteralTX",
+    "_aaGetHash", "_aaEqual", "_aaKeys", "_aaDel", "_aaIn", "_aaGetX", "_aaDup", "_d_assocarrayliteralTX",
+    ];
 
 static foreach (hook; hooks)
     mixin("version (" ~ hook ~ ") import " ~ hook ~ " : GenTest;");
