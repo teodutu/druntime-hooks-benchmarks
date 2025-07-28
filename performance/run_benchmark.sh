@@ -28,6 +28,12 @@ HOOKS_NON_TEMPLATE_COMMITS["_adEq2_equals"]="e0cf19144f2afed531cc2f40eee7e051994
 HOOKS_NON_TEMPLATE_COMMITS["_adEq2_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 HOOKS_NON_TEMPLATE_COMMITS["__equals_memcmp"]="e0cf19144f2afed531cc2f40eee7e051994d4e98"
 
+_aa_hooks=("_aaGetHash" "_aaEqual" "_aaKeys" "_aaDel" "_aaIn" "_aaGetX" "_aaDup" "_d_assocarrayliteralTX")
+for hook in "${_aa_hooks[@]}"; do
+	HOOKS_TEMPLATE_COMMITS[$hook]="d8a6f8761477f062c75d17707ad8c7d0ccb8598d"
+	HOOKS_NON_TEMPLATE_COMMITS[$hook]="941545f298c6f081577568f32a4905aa40571d29"
+done
+
 declare -A druntime_a_size
 declare -A phobos2_a_size
 declare -A phobos2_so_size
