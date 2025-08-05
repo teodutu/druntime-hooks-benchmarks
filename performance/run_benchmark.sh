@@ -12,6 +12,10 @@ fi
 NT_BENCH_OUTPUT=""
 T_BENCH_OUTPUT=""
 
+# Redirect all output to a log file
+LOG_FILE="$PWD/bench.log"
+exec &>"$LOG_FILE"
+
 HOOK=$1
 RESULTS_FILE=$2
 if [[ "$2" = /* ]]; then
@@ -99,20 +103,20 @@ function sync_repos() {
 	dmd)
 		commit_date=$(git show -s --format=%ci $commit_sha)
 		git checkout $commit_sha
-		make clean &>/dev/null
+		make clean
 
 		if [[ $skip_phobos == false ]]; then
 			pushd $PHOBOS_PATH >/dev/null
 			git checkout $(git rev-list -n 1 --before="$commit_date" master)
-			make clean &>/dev/null
-			make -j$(nproc) &>/dev/null
+			make clean
+			make -j$(nproc)
 			popd >/dev/null
 
 			druntime_a_path=$DC_PATH/generated/linux/release/64/libdruntime.a
 			libphobos2_a_path=$PHOBOS_PATH/generated/linux/release/64/libphobos2.a
 			libphobos2_so_path=$PHOBOS_PATH/generated/linux/release/64/libphobos2.so
 		fi
-		make -j$(nproc) &>/dev/null
+		make -j$(nproc)
 
 		;;
 	gdc)
@@ -122,17 +126,17 @@ function sync_repos() {
 		rm -r runtime
 		git reset --hard HEAD
 		git checkout -f $commit_sha
-		git submodule update --init &>/dev/null
+		git submodule update --init
 
-		rm -r build &>/dev/null
+		rm -r build
 		mkdir build
-		cmake -S . -B build &>/dev/null
+		cmake -S . -B build
 
 		cd build
-		make clean &>/dev/null
+		make clean
 		make -j$(nproc) ldc2
 		if [[ $skip_phobos == false ]]; then
-			make -C runtime -j$(nproc) druntime-ldc phobos2-ldc phobos2-ldc-shared &>/dev/null
+			make -C runtime -j$(nproc) druntime-ldc phobos2-ldc phobos2-ldc-shared
 			druntime_a_path=$PWD/lib/libdruntime-ldc.a
 			libphobos2_a_path=$PWD/lib/libphobos2-ldc.a
 			libphobos2_so_path=$PWD/lib/libphobos2-ldc-shared.so
