@@ -8,6 +8,10 @@ if [ $# -ne 3 ] && [ $# -ne 2 ]; then
 	exit 1
 fi
 
+# Used for storing and handling the output of the benchmarks
+NT_BENCH_OUTPUT=""
+T_BENCH_OUTPUT=""
+
 HOOK=$1
 RESULTS_FILE=$2
 if [[ "$2" = /* ]]; then
@@ -152,11 +156,13 @@ function sync_repos() {
 }
 
 function test_commit() {
-	sync_repos $1
+	declare -n out_var=$1
+	sync_repos $2
 
 	pushd $CRT_PATH >/dev/null
 	$DC $DC_FLAGS array_benchmark.d
-	./array_benchmark >>$RESULTS_FILE
+	out_var=$(./array_benchmark)
+
 	popd >/dev/null
 }
 
@@ -192,13 +198,32 @@ function compute_percentage_change() {
 	old_value=$1
 	new_value=$2
 
-	if [[ $old_value -eq 0 ]]; then
+	if [[ $(awk -v ov="$old_value" "BEGIN {print (ov == 0)}") -eq 1 ]]; then
 		echo "N/A"
 		return
 	fi
 
 	change=$(awk "BEGIN {printf \"%.2f\", (($new_value - $old_value) / $old_value) * 100}")
 	echo "$change%"
+}
+
+function print_templated_bench_output() {
+	readarray -t nt_lines <<<$NT_BENCH_OUTPUT
+	readarray -t t_lines <<<$T_BENCH_OUTPUT
+
+	local out="${t_lines[0]},diff (ms),diff (%)"
+
+	for i in $(seq 1 $((${#t_lines[@]} - 1))); do
+		local nt_time=$(echo "${nt_lines[$i]}" | cut -d, -f3)
+		local t_line=${t_lines[$i]}
+		local t_time=$(echo "$t_line" | cut -d, -f3)
+
+		local diff=$(awk -v nt="$nt_time" -v t="$t_time" 'BEGIN {printf "%.2f", (t - nt)}')
+		local diff_pct=$(compute_percentage_change $nt_time $t_time)
+		out+=$'\n'"${t_line},$diff,$diff_pct"
+	done
+
+	printf "%s\n" "$out" | column -t -s, -o" | " >>$RESULTS_FILE
 }
 
 function test_hook() {
@@ -213,11 +238,13 @@ function test_hook() {
 	for i in {1..5}; do
 		echo -e "\n============================================================" >>$RESULTS_FILE
 		echo "Testing non-template hook - Commit: ${baseline_commit}" >>$RESULTS_FILE
-		test_commit $baseline_commit
+		test_commit NT_BENCH_OUTPUT $baseline_commit
+		printf "%s\n" "$NT_BENCH_OUTPUT" | column -t -s, -o" | " >>$RESULTS_FILE
 
 		echo -e "\n============================================================" >>$RESULTS_FILE
 		echo "Testing template hook - Commit: ${hook_commit}" >>$RESULTS_FILE
-		test_commit $hook_commit
+		test_commit T_BENCH_OUTPUT $hook_commit
+		print_templated_bench_output
 	done
 
 	echo -e "\n============================================================" >>$RESULTS_FILE
@@ -238,9 +265,12 @@ function test_hook() {
 	phobos2_so_size_new=${phobos2_so_size[$hook_commit]}
 
 	echo -e "\n============================================================" >>$RESULTS_FILE
-	echo "libdruntime.a size: old=${druntime_a_size_old} B / new=${druntime_a_size_new} B => $(compute_percentage_change $druntime_a_size_old $druntime_a_size_new) change" >>$RESULTS_FILE
-	echo "libphobos2.a size: old=${phobos2_a_size_old} B / new=${phobos2_a_size_new} B => $(compute_percentage_change $phobos2_a_size_old $phobos2_a_size_new) change" >>$RESULTS_FILE
-	echo "libphobos2.so size: old=${phobos2_so_size_old} B / new=${phobos2_so_size_new} B => $(compute_percentage_change $phobos2_so_size_old $phobos2_so_size_new) change" >>$RESULTS_FILE
+	local lib_out="lib name,old size (B),new size (B),diff (%)"
+	lib_out+=$'\n'"libdruntime.a,$druntime_a_size_old,$druntime_a_size_new,$(compute_percentage_change $druntime_a_size_old $druntime_a_size_new)"
+	lib_out+=$'\n'"libphobos2.a,$phobos2_a_size_old,$phobos2_a_size_new,$(compute_percentage_change $phobos2_a_size_old $phobos2_a_size_new)"
+	lib_out+=$'\n'"libphobos2.so,$phobos2_so_size_old,$phobos2_so_size_new,$(compute_percentage_change $phobos2_so_size_old $phobos2_so_size_new)"
+
+	printf "%s\n" "$lib_out" | column -t -s, -o" | " >>$RESULTS_FILE
 
 	if [[ $D_COMPILER == "ldc" ]]; then
 		pushd $DC_PATH >/dev/null

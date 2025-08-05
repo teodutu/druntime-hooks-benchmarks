@@ -1,6 +1,6 @@
 module array_benchmark;
 
-import std.stdio : writeln;
+import std.stdio : printf;
 import std.datetime.stopwatch : benchmark;
 import std.math : sqrt;
 import std.algorithm : reduce;
@@ -45,12 +45,14 @@ void runTest(void function() func, string funcName, uint runs)
     auto n = times.length;
     auto avg = reduce!((a, b) => a + b / n)(0.0f, times);
     auto sd = sqrt(reduce!((a, b) => a + (b - avg) * (b - avg) / n)(0.0f, times));
+    auto cv = sd / avg * 100;
 
-    writeln(funcName, " @ ", runs, " runs:\taverage time = ", avg, "ms; \tstd dev = ", sd);
+    printf("%s,%d,%.4f,%.4f,%.3f\n", funcName.ptr, runs, avg, sd, cv);
 }
 
 void main()
 {
+    printf("Function name,runs,avg time (ms),std dev (ms),cv (%)\n");
     static foreach (st; structs)
         static foreach (i, sz; sizesElems)
             mixin("runTest(&test" ~ st ~ sz ~ ", \"" ~ st ~ sz ~ "\", 1_000_000U);");
