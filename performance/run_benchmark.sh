@@ -104,7 +104,7 @@ function sync_repos() {
 			make -j$(nproc) &>/dev/null
 			popd >/dev/null
 
-			druntime_a_path=$PHOBOS_PATH/generated/linux/release/64/libdruntime.a
+			druntime_a_path=$DC_PATH/generated/linux/release/64/libdruntime.a
 			libphobos2_a_path=$PHOBOS_PATH/generated/linux/release/64/libphobos2.a
 			libphobos2_so_path=$PHOBOS_PATH/generated/linux/release/64/libphobos2.so
 		fi
@@ -129,9 +129,9 @@ function sync_repos() {
 		make -j$(nproc) ldc2
 		if [[ $skip_phobos == false ]]; then
 			make -C runtime -j$(nproc) druntime-ldc phobos2-ldc phobos2-ldc-shared &>/dev/null
-			druntime_a_path=$(realpath lib/libdruntime-ldc.a)
-			libphobos2_a_path=$(realpath lib/libphobos2-ldc.a)
-			libphobos2_so_path=$(realpath lib/libphobos2-ldc-shared.so)
+			druntime_a_path=$PWD/lib/libdruntime-ldc.a
+			libphobos2_a_path=$PWD/lib/libphobos2-ldc.a
+			libphobos2_so_path=$PWD/lib/libphobos2-ldc-shared.so
 		fi
 
 		;;
