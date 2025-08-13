@@ -1,31 +1,35 @@
 #! /bin/bash
 
-if [ $# -ne 3 ] && [ $# -ne 2 ]; then
-	echo "Use DMD to compile a benchmark to compare the performance of a hook."
-	echo "Compare the performance of a given branch against master in case the branch hasn't been merged yet."
-	echo -e "Alternatively, compare the performance of a given hook before and after its translation PR was merged.\n"
-	echo "Usage: $0 <runtime_hook> <output_file> [branch_name]"
-	exit 1
-fi
+source utils/argsparse.sh
+
+argsparse_use_option "=output:" "Results output file" default:bench.out
+argsparse_use_option "=compiler:" "D compiler to use (dmd, gdc, ldc)" default:dmd
+option_compiler_values=(dmd gdc ldc)
+argsparse_use_option "=log_file:" "File where to log the output of execution" default:bench.log
+argsparse_use_option "root_dir:" "Root directory where the compiler/phobos repos are located (e.g. <root_dir>/dmd, <root_dir>/phobos)" mandatory type:directory
+argsparse_describe_parameters "hook"
+parameter_hook_values=(dmd ldc)
+
+argsparse_parse_options "$@"
 
 # Used for storing and handling the output of the benchmarks
 NT_BENCH_OUTPUT=""
 T_BENCH_OUTPUT=""
 
 # Redirect all output to a log file
-LOG_FILE="$PWD/bench.log"
+LOG_FILE=${program_options["log_file"]}
+touch "$LOG_FILE"
+LOG_FILE=$(realpath "$LOG_FILE")
+exec 3>&1
 exec &>"$LOG_FILE"
 
-HOOK=$1
-RESULTS_FILE=$2
-if [[ "$2" = /* ]]; then
-	RESULTS_FILE=$2
-else
-	RESULTS_FILE="$PWD/$2"
-fi
+HOOK=${program_params["hook"]}
+RESULTS_FILE=${program_options["output"]}
+touch "$RESULTS_FILE"
+RESULTS_FILE=$(realpath "$RESULTS_FILE")
 CRT_PATH=$PWD
 
-BASE_DIR=$(realpath ~/src/dlang)
+BASE_DIR=$(realpath "${program_options["root_dir"]}")
 D_COMPILER=${D_COMPILER:-dmd}
 DC_PATH="$BASE_DIR/$D_COMPILER"
 
@@ -49,7 +53,7 @@ ldc)
 	declare -n NON_TEMPLATED_COMMIT=LDC_NON_TEMPLATED_COMMIT
 	;;
 *)
-	echo "Unknown D compiler: $D_COMPILER"
+	echo "Unknown D compiler: $D_COMPILER" >&3
 	exit 1
 	;;
 esac
@@ -60,10 +64,11 @@ declare -A druntime_a_size
 declare -A phobos2_a_size
 declare -A phobos2_so_size
 
-if [[ $# -eq 3 ]]; then
-	HOOK_BRANCH=$3
-elif [[ -v TEMPLATED_COMMIT[$HOOK] ]]; then
+if [[ -v TEMPLATED_COMMIT[$HOOK] ]]; then
 	HOOK_BRANCH=${TEMPLATED_COMMIT[$HOOK]}
+else
+	echo -e "Invalid hook '$HOOK'\nAvailable hooks:" "${!TEMPLATED_COMMIT[@]}" >&3
+	exit 1
 fi
 
 function set_if_unset() {
@@ -287,22 +292,12 @@ function test_hook() {
 	fi
 }
 
-if [ $HOOK_BRANCH != "" ]; then
-	echo "branch"
-	base_branch=${NON_TEMPLATED_COMMIT[$HOOK]}
-	if [[ $base_branch == "" ]]; then
-		echo "Non-template commit hash for hook '$HOOK' not found."
-		exit 1
-	fi
-	test_hook $base_branch $HOOK_BRANCH
-else
-	echo "no branch -> unsupported"
+base_branch=${NON_TEMPLATED_COMMIT[$HOOK]}
+if [[ $base_branch == "" ]]; then
+	echo "Non-template commit hash for hook '$HOOK' not found." >&3
 	exit 1
-	# cd $DMD_PATH
-	# git checkout master
-	# hook_commit=$(git log --grep="Translate $HOOK" | head -n 1 | cut -d ' ' -f 2)
-	# test_hook "$hook_commit^" $hook_commit
 fi
+test_hook $base_branch $HOOK_BRANCH
 
 cd $CRT_PATH
 make clean
