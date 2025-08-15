@@ -3,7 +3,7 @@
 _aa_hooks=("_aaGetHash" "_aaEqual" "_aaKeys" "_aaDel" "_aaIn" "_aaGetX" "_aaDup" "_d_assocarrayliteralTX")
 
 declare -A DMD_TEMPLATED_COMMIT
-DMD_TEMPLATED_COMMIT["_d_arrayctor"]="71839d3ced6a26667f323769f35bbbfcb17f2e32"
+DMD_TEMPLATED_COMMIT["_d_arrayctor"]="eaf27698160ef6d67bb95a8f098b274d15e07e44"
 DMD_TEMPLATED_COMMIT["_d_arrayappendT"]="a2ebf9a66a4a1d2200cadb755b1740680a7890eb"
 DMD_TEMPLATED_COMMIT["_d_arraycatT"]="1db1ba87fd23d45f1bffaea07efe7dc8070ffef1"
 DMD_TEMPLATED_COMMIT["_d_arraycatnTX"]="1db1ba87fd23d45f1bffaea07efe7dc8070ffef1"
@@ -50,7 +50,7 @@ for hook in "${_aa_hooks[@]}"; do
 done
 
 declare -A LDC_TEMPLATED_COMMIT
-LDC_TEMPLATED_COMMIT["_d_arrayctor"]="222f4df3561370fd1f0b720ed64ec538bb333a65"
+LDC_TEMPLATED_COMMIT["_d_arrayctor"]="222f4df3561370fd1f0b720ed64ec538bb333a65" # -> update when dmd commit is integrated
 LDC_TEMPLATED_COMMIT["_d_arrayappendT"]="e5c97c6468334c65130a654c8aec819c51dd61d3"
 LDC_TEMPLATED_COMMIT["_d_arraycatT"]="634521a391dc5534b300c673e6dd5a94eaf14dbd"
 LDC_TEMPLATED_COMMIT["_d_arraycatnTX"]="634521a391dc5534b300c673e6dd5a94eaf14dbd"
