@@ -41,8 +41,11 @@ dmd)
 	declare -n NON_TEMPLATED_COMMIT=DMD_NON_TEMPLATED_COMMIT
 	;;
 gdc)
-	echo "GDC is not supported"
-	exit 1
+	declare -n TEMPLATED_COMMIT=GDC_TEMPLATED_COMMIT
+	declare -n NON_TEMPLATED_COMMIT=GDC_NON_TEMPLATED_COMMIT
+	GDC_INSTALL_DIR=$(realpath "$BASE_DIR/gdc-install")
+	DC_FLAGS="-o array_benchmark -O3 -fno-stack-protector -frelease -fno-bounds-check -fversion=$HOOK -I$HOOK/"
+	DC="$GDC_INSTALL_DIR/bin/gdc"
 	;;
 ldc)
 	DC=$DC_PATH/build/bin/ldc2
@@ -124,7 +127,19 @@ function sync_repos() {
 
 		;;
 	gdc)
+		# TODO: Maybe figure a less destructive way to reset the repo
+		git clean -fdx
 		git checkout $commit_sha
+		./configure --disable-checking --disable-libphobos-checking --disable-libgomp --disable-libmudflap --disable-libquadmath --disable-libssp --disable-nls --enable-lto --enable-languages=d --disable-multilib --disable-bootstrap --prefix="$GDC_INSTALL_DIR"
+
+		make -j$(nproc)
+		rm -rf "$GDC_INSTALL_DIR"
+		make install-strip
+		if [[ $skip_phobos == false ]]; then
+			druntime_a_path="$GDC_INSTALL_DIR/lib64/libgdruntime.a"
+			libphobos2_a_path="$GDC_INSTALL_DIR/lib64/libgphobos.a"
+			libphobos2_so_path="$GDC_INSTALL_DIR/lib64/libgphobos.so"
+		fi
 		;;
 	ldc)
 		rm -r runtime
@@ -184,7 +199,12 @@ function compilation_bench() {
 		pushd $PHOBOS_PATH >/dev/null
 		compile_bench_command="make clean && make $DC_PATH/druntime clean && make -j$(nproc)"
 		;;
-	gdc) ;;
+	gdc)
+		pushd $DC_PATH >/dev/null
+		local libphobos_path=$(find . -mindepth 2 -maxdepth 2 -type d -name "libphobos" | head -n1)
+		libphobos_path=$(realpath "$libphobos_path")
+		compile_bench_command="make -C $libphobos_path clean && make -C $libphobos_path -j$(nproc)"
+		;;
 	ldc)
 		pushd $DC_PATH/build/runtime >/dev/null
 		compile_bench_command="make clean && make -j$(nproc) druntime-ldc phobos2-ldc"
@@ -288,6 +308,11 @@ function test_hook() {
 	restore_branch $DC_PATH $cur_dmd_branch
 	if [[ $D_COMPILER == "dmd" ]]; then
 		restore_branch $PHOBOS_PATH $cur_phobos_branch
+	fi
+
+	# Clean up GDC install directory if it was used
+	if [[ $D_COMPILER == "gdc" ]]; then
+		rm -rf "$GDC_INSTALL_DIR"
 	fi
 }
 
