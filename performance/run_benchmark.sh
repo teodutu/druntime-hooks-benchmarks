@@ -8,7 +8,6 @@ option_compiler_values=(dmd gdc ldc)
 argsparse_use_option "=log_file:" "File where to log the output of execution" default:bench.log
 argsparse_use_option "root_dir:" "Root directory where the compiler/phobos repos are located (e.g. <root_dir>/dmd, <root_dir>/phobos)" mandatory type:directory
 argsparse_describe_parameters "hook"
-parameter_hook_values=(dmd ldc)
 
 argsparse_parse_options "$@"
 
@@ -30,7 +29,7 @@ RESULTS_FILE=$(realpath "$RESULTS_FILE")
 CRT_PATH=$PWD
 
 BASE_DIR=$(realpath "${program_options["root_dir"]}")
-D_COMPILER=${D_COMPILER:-dmd}
+D_COMPILER=${program_options["compiler"]}
 DC_PATH="$BASE_DIR/$D_COMPILER"
 
 case $D_COMPILER in
