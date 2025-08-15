@@ -1,0 +1,34 @@
+
+============================================================
+Testing non-template hook - Commit: cbdce51f41e20b690ce505caabb184c77b08930a
+Function name        | runs    | avg time (ms) | std dev (ms) | cv (%)
+_0B_Struct_1Elems    | 1000000 | 56.9500       | 0.2179       | 0.383
+_0B_Struct_64Elems   | 1000000 | 2173.6001     | 1.6553       | 0.076
+_0B_Struct_256Elems  | 1000000 | 10900.3008    | 6.7015       | 0.061
+_64B_Struct_1Elems   | 1000000 | 58.1500       | 0.3571       | 0.614
+_64B_Struct_64Elems  | 1000000 | 16400.4492    | 58.0926      | 0.354
+_64B_Struct_256Elems | 1000000 | 203005.9375   | 355.2344     | 0.175
+
+============================================================
+Testing template hook - Commit: d1abd66147115724bd6386f21af3e2e4d1b7917d
+Function name        | runs    | avg time (ms) | std dev (ms) | cv (%) | diff (ms) | diff (%)
+_0B_Struct_1Elems    | 1000000 | 44.5500       | 0.8646       | 1.941  | -12.40    | -21.77%
+_0B_Struct_64Elems   | 1000000 | 1588.7001     | 29.3481      | 1.847  | -584.90   | -26.91%
+_0B_Struct_256Elems  | 1000000 | 8975.7002     | 18.6550      | 0.208  | -1924.60  | -17.66%
+_64B_Struct_1Elems   | 1000000 | 46.0000       | 0.0000       | 0.000  | -12.15    | -20.89%
+_64B_Struct_64Elems  | 1000000 | 8807.2998     | 47.4364      | 0.539  | -7593.15  | -46.30%
+_64B_Struct_256Elems | 1000000 | 114406.0547   | 385.8375     | 0.337  | -88599.88 | -43.64%
+
+============================================================
+Compilation performance non-template hook - Commit: cbdce51f41e20b690ce505caabb184c77b08930a
+Average time: 28.770 seconds, Standard deviation: 0.102 (+- 0.36%) seconds
+
+============================================================
+Compilation performance template hook - Commit: d1abd66147115724bd6386f21af3e2e4d1b7917d
+Average time: 25.0649 seconds, Standard deviation: 0.0111 (+- 0.04%) seconds
+
+============================================================
+lib name      | old size (B) | new size (B) | diff (%)
+libdruntime.a | 2926336      | 2956766      | 1.04%
+libphobos2.a  | 9607416      | 9294200      | -3.26%
+libphobos2.so | 6371704      | 5843352      | -8.29%
