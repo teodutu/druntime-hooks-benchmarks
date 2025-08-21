@@ -1,0 +1,35 @@
+
+============================================================
+Testing non-template hook - Commit: 8faae311a60a552ed3d506de28c50c77fa49b229
+Function name        | runs    | avg time (ms) | std dev (ms) | cv (%)
+_0B_Struct_1Elems    | 1000000 | 83.3500       | 0.7263       | 0.871
+_0B_Struct_64Elems   | 1000000 | 3169.1499     | 220.9586     | 6.972
+_0B_Struct_256Elems  | 1000000 | 13807.0996    | 577.9967     | 4.186
+_64B_Struct_1Elems   | 1000000 | 77.2000       | 0.4000       | 0.518
+_64B_Struct_64Elems  | 1000000 | 19200.1992    | 101.7917     | 0.530
+_64B_Struct_256Elems | 1000000 | 217943.4531   | 762.7885     | 0.350
+
+============================================================
+Testing template hook - Commit: 2ead01297ced8fd03387021025222a839503eaf6
+Function name        | runs    | avg time (ms) | std dev (ms) | cv (%) | diff (ms) | diff (%)
+_0B_Struct_1Elems    | 1000000 | 103.6500      | 1.4239       | 1.374  | 20.30     | 24.36%
+_0B_Struct_64Elems   | 1000000 | 2718.1997     | 263.0606     | 9.678  | -450.95   | -14.23%
+_0B_Struct_256Elems  | 1000000 | 12346.0986    | 876.8726     | 7.102  | -1461.00  | -10.58%
+_64B_Struct_1Elems   | 1000000 | 88.3500       | 0.4770       | 0.540  | 11.15     | 14.44%
+_64B_Struct_64Elems  | 1000000 | 15962.8496    | 47.8730      | 0.300  | -3237.35  | -16.86%
+_64B_Struct_256Elems | 1000000 | 212124.4062   | 292.8886     | 0.138  | -5819.05  | -2.67%
+
+============================================================
+Compilation performance non-template hook - Commit: 8faae311a60a552ed3d506de28c50c77fa49b229
+Average time: 35.1045 seconds, Standard deviation: 0.0405 (+- 0.12%) seconds
+
+============================================================
+Compilation performance template hook - Commit: 2ead01297ced8fd03387021025222a839503eaf6
+Average time: 35.136 seconds, Standard deviation: 0.122 (+- 0.35%) seconds
+
+============================================================
+lib name      | old size (B) | new size (B) | diff (%)
+libdruntime.a | 4452442      | 4558094      | 2.37%
+libphobos2.a  | 23437176     | 23000278     | -1.86%
+libphobos2.so | 8100376      | 9230000      | 13.95%
+
