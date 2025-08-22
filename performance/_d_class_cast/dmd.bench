@@ -1,0 +1,40 @@
+
+============================================================
+Testing non-template hook - Commit: d234a544f13ee7293fc8108a0aba29685ae1ac38
+Function name         | runs    | avg time (ms) | std dev (ms) | cv (%)
+_0B_Struct_1Elems     | 1000000 | 25.6000       | 0.8000       | 3.125
+_0B_Struct_64Elems    | 1000000 | 179.3500      | 0.5723       | 0.319
+_0B_Struct_256Elems   | 1000000 | 617.2500      | 4.6138       | 0.747
+_64B_Struct_1Elems    | 1000000 | 21.0500       | 0.2179       | 1.035
+_64B_Struct_64Elems   | 1000000 | 173.0500      | 0.2179       | 0.126
+_64B_Struct_256Elems  | 1000000 | 613.2000      | 1.3266       | 0.216
+_256B_Struct_1Elems   | 1000000 | 21.0000       | 0.0000       | 0.000
+_256B_Struct_64Elems  | 1000000 | 173.8000      | 0.6782       | 0.390
+_256B_Struct_256Elems | 1000000 | 611.9000      | 1.0440       | 0.171
+
+============================================================
+Testing template hook - Commit: 9e7f0af277b7762efa6ae1a3a35a0b6cb7257d17
+Function name         | runs    | avg time (ms) | std dev (ms) | cv (%) | diff (ms) | diff (%)
+_0B_Struct_1Elems     | 1000000 | 25.1000       | 1.3000       | 5.179  | -0.50     | -1.95%
+_0B_Struct_64Elems    | 1000000 | 227.9500      | 2.8718       | 1.260  | 48.60     | 27.10%
+_0B_Struct_256Elems   | 1000000 | 808.8500      | 2.9542       | 0.365  | 191.60    | 31.04%
+_64B_Struct_1Elems    | 1000000 | 22.0500       | 0.2179       | 0.988  | 1.00      | 4.75%
+_64B_Struct_64Elems   | 1000000 | 224.2500      | 1.9969       | 0.890  | 51.20     | 29.59%
+_64B_Struct_256Elems  | 1000000 | 812.8500      | 4.9120       | 0.604  | 199.65    | 32.56%
+_256B_Struct_1Elems   | 1000000 | 22.0000       | 0.0000       | 0.000  | 1.00      | 4.76%
+_256B_Struct_64Elems  | 1000000 | 223.0000      | 1.2649       | 0.567  | 49.20     | 28.31%
+_256B_Struct_256Elems | 1000000 | 812.0501      | 5.9201       | 0.729  | 200.15    | 32.71%
+
+============================================================
+Compilation performance non-template hook - Commit: d234a544f13ee7293fc8108a0aba29685ae1ac38
+Average time: 9.24856 seconds, Standard deviation: 0.00864 (+- 0.09%) seconds
+
+============================================================
+Compilation performance template hook - Commit: 9e7f0af277b7762efa6ae1a3a35a0b6cb7257d17
+Average time: 9.30724 seconds, Standard deviation: 0.00872 (+- 0.09%) seconds
+
+============================================================
+lib name      | old size (B) | new size (B) | diff (%)
+libdruntime.a | 16167504     | 16363128     | 1.21%
+libphobos2.a  | 55586696     | 55843034     | 0.46%
+libphobos2.so | 8586392      | 8606600      | 0.24%
