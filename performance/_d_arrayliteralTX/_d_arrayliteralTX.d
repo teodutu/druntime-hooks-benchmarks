@@ -18,6 +18,7 @@ template GenTest(string Struct, string Size, string arr)
 {
     const char[] GenTest = "void test" ~ Struct ~ '_' ~ Size ~ "Elems() { "
         ~ "import _d_arrayliteralTX : GenArray;"
-        ~ "auto arr = mixin(GenArray!(" ~ Size ~ ",\"" ~ arr ~ "\")); "
+        ~ "const " ~ Struct ~ " s;"
+        ~ "auto arr = mixin(GenArray!(" ~ Size ~ ",\"s\"));"
         ~ " }";
 }
