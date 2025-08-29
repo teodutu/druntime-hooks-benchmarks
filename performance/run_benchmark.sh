@@ -44,7 +44,7 @@ gdc)
 	declare -n TEMPLATED_COMMIT=GDC_TEMPLATED_COMMIT
 	declare -n NON_TEMPLATED_COMMIT=GDC_NON_TEMPLATED_COMMIT
 	GDC_INSTALL_DIR=$(realpath "$BASE_DIR/gdc-install")
-	DC_FLAGS="-o array_benchmark -O3 -fno-stack-protector -frelease -fno-bounds-check -fversion=$HOOK -I$HOOK/"
+	DC_FLAGS="-o array_benchmark -O3 -fno-weak-templates -fno-stack-protector -frelease -fno-bounds-check -fversion=$HOOK -I$HOOK/"
 	DC="$GDC_INSTALL_DIR/bin/gdc"
 	;;
 ldc)
