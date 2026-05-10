@@ -14,6 +14,7 @@ for every project that has data for both old and new commits.
 
 import argparse
 import csv
+import math
 import os
 import sys
 
@@ -58,6 +59,18 @@ def plot_lollipop(rows, compiler, outdir):
     projects = [short_name(r["project"]) for r in rows]
     diffs = [r["diff_pct"] for r in rows]
 
+    # Propagate std devs into the percentage difference.
+    # diff% = (new - old) / old * 100
+    # σ(diff%) = 100 * sqrt((σ_new/old)^2 + (new*σ_old/old^2)^2)
+    diff_errs = []
+    for r in rows:
+        o, n, so, sn = r["old_avg"], r["new_avg"], r["old_sd"], r["new_sd"]
+        if o != 0:
+            err = 100 * math.sqrt((sn / o) ** 2 + (n * so / o ** 2) ** 2)
+        else:
+            err = 0.0
+        diff_errs.append(err)
+
     n = len(projects)
     fig_height = max(4, 0.38 * n)
     fig, ax = plt.subplots(figsize=(10, fig_height))
@@ -69,8 +82,12 @@ def plot_lollipop(rows, compiler, outdir):
 
     # Stems
     ax.hlines(y=y_pos, xmin=0, xmax=diffs, colors=colors, linewidth=1.5)
-    # Dots
-    ax.scatter(diffs, y_pos, color=colors, s=50, zorder=3)
+    # Dots with std-dev error bars
+    for i in y_pos:
+        ax.errorbar(diffs[i], i, xerr=diff_errs[i],
+                     fmt='o', color=colors[i], markersize=5,
+                     ecolor=colors[i], elinewidth=1, capsize=3,
+                     alpha=0.8, zorder=3)
 
     # Zero line
     ax.axvline(0, color="grey", linewidth=0.8, linestyle="--")
@@ -78,7 +95,7 @@ def plot_lollipop(rows, compiler, outdir):
     ax.set_yticks(list(y_pos))
     ax.set_yticklabels(projects, fontsize=8)
     ax.set_xlabel("Time difference (%)")
-    ax.set_title(f"{compiler.upper()} — Build-time change (old → new)")
+    ax.set_title(f"{compiler.upper()} — Build-time change (non-template → template)")
     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%+.1f%%"))
 
     # Annotate each dot with its value.

@@ -27,7 +27,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-NUM_ITERATIONS="${NUM_ITERATIONS:-1}"
+NUM_ITERATIONS="${NUM_ITERATIONS:-100}"
 
 LDC_REPO_PATH="${LDC_REPO_PATH:-$HOME/dlang/ldc}"
 GDC_REPO_PATH="${GDC_REPO_PATH:-$HOME/dlang/gdc}"
@@ -675,10 +675,10 @@ emit_table_section() {
     {
         echo "## $title"
         echo
-        echo "- Old $compiler commit: $old_sha"
-        echo "- New $compiler commit: $new_sha"
+        echo "- Non-template $compiler commit: $old_sha"
+        echo "- Template $compiler commit: $new_sha"
         echo
-        echo "| Project | Old avg time (s) | Old std dev | New avg time (s) | New std dev | Time difference % |"
+        echo "| Project | Non-template avg time (s) | Non-template std dev | Template avg time (s) | Template std dev | Time difference % |"
         echo "|:--------|:----------------:|:-----------:|:----------------:|:-----------:|:-----------------:|"
         for project in "${PROJECTS[@]}"; do
             local old_v new_v
