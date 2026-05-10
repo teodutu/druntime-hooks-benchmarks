@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# GDC wrapper that works around two dub/GDC incompatibilities:
+#
+# 1. dub 1.27 passes -w (DMD's "warnings are errors") in response files.
+#    GDC translates -w to -Werror -Wall internally, which makes deprecation
+#    warnings into hard errors. This wrapper filters -w and -Werror out of
+#    both the command line and any response files.
+#
+# 2. Some dub projects use "$DC -run file.d" in pre-build/pre-generate
+#    commands. GDC doesn't support -run.  When -run is detected, the wrapper
+#    delegates to rdmd (which must be on PATH).
+#
+# The wrapper expects GDC_REAL_PATH to point to the real gdc binary.
+
+set -uo pipefail
+
+if [[ -z "${GDC_REAL_PATH:-}" ]]; then
+    echo "gdc-wrapper: GDC_REAL_PATH not set" >&2
+    exit 1
+fi
+
+# Detect "-run file.d [args...]" and delegate to rdmd.
+run_idx=0
+for arg in "$@"; do
+    run_idx=$((run_idx + 1))
+    if [[ "$arg" == "-run" ]]; then
+        # Everything after -run is the D source file + its arguments.
+        shift "$run_idx"   # drop everything up to and including -run
+        exec rdmd "$@"
+    fi
+done
+
+args=()
+for arg in "$@"; do
+    case "$arg" in
+        -Werror|-Werror=*|-w) ;;   # strip from command line
+        @*)
+            # Rewrite response file, stripping -w and -Werror lines.
+            rspfile="${arg#@}"
+            if [[ -f "$rspfile" ]]; then
+                filtered=$(mktemp "${rspfile}.filtered.XXXXXX")
+                grep -v -E '^-w$|^-Werror' "$rspfile" > "$filtered"
+                args+=("@$filtered")
+            else
+                args+=("$arg")
+            fi
+            ;;
+        *) args+=("$arg") ;;
+    esac
+done
+
+exec "$GDC_REAL_PATH" "${args[@]}"

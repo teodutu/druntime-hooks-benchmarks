@@ -1,2 +1,4 @@
 .compiler-builds/
 projects/
+gdc-install/
+results/
