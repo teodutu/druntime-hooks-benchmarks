@@ -1,0 +1,3 @@
+[submodule "buildkite-benchmarks/dlang-ci"]
+	path = buildkite-benchmarks/dlang-ci
+	url = https://github.com/dlang/ci.git
