@@ -59,6 +59,7 @@ COMPILER_BUILD_MARKERS_DIR="$SCRIPT_DIR/.compiler-builds"
 LOG_DIR="$RESULTS_DIR/logs"
 ERROR_LOG="$RESULTS_DIR/errors.log"
 REPORT_FILE="${REPORT_FILE:-$RESULTS_DIR/report.md}"
+CSV_FILE="$RESULTS_DIR/benchmarks.csv"
 
 mkdir -p "$PROJECTS_DIR" "$RESULTS_DIR" "$LOG_DIR" "$COMPILER_BUILD_MARKERS_DIR"
 : > "$ERROR_LOG"
@@ -713,6 +714,35 @@ emit_report() {
     log "Report written to $REPORT_FILE"
 }
 
+# Write a CSV consumed by plot_results.py.
+# Format: compiler,project,old_avg,old_sd,new_avg,new_sd,diff_pct
+emit_csv() {
+    local compiler="$1" old_sha="$2" new_sha="$3"
+    for project in "${PROJECTS[@]}"; do
+        local old_v new_v
+        old_v="${RESULTS[${compiler}|${old_sha}|${project}]:-N/A\tN/A}"
+        new_v="${RESULTS[${compiler}|${new_sha}|${project}]:-N/A\tN/A}"
+        local old_avg old_sd new_avg new_sd
+        IFS=$'\t' read -r old_avg old_sd <<<"$old_v"
+        IFS=$'\t' read -r new_avg new_sd <<<"$new_v"
+
+        local diff="N/A"
+        if [[ "$old_avg" != "N/A" && "$new_avg" != "N/A" ]]; then
+            diff=$(awk -v o="$old_avg" -v n="$new_avg" \
+                'BEGIN{ if (o==0) {print "N/A"} else {printf "%.2f", (n-o)/o*100} }')
+        fi
+        echo "$compiler,$project,$old_avg,$old_sd,$new_avg,$new_sd,$diff"
+    done
+}
+
+emit_csv_file() {
+    {
+        emit_csv ldc "$OLD_LDC_COMMIT" "$NEW_LDC_COMMIT"
+        emit_csv gdc "$OLD_GDC_COMMIT" "$NEW_GDC_COMMIT"
+    } > "$CSV_FILE"
+    log "CSV written to $CSV_FILE"
+}
+
 #-------------------------------------------------------------------------------
 # Main
 #-------------------------------------------------------------------------------
@@ -738,6 +768,14 @@ main() {
     run_buildkite_with_compiler_repo gdc "$OLD_GDC_COMMIT" "$NEW_GDC_COMMIT" "$GDC_WRAPPER_PATH"
 
     emit_report
+    emit_csv_file
+
+    # Generate lollipop charts if matplotlib is available.
+    if python3 -c 'import matplotlib' 2>/dev/null; then
+        python3 "$SCRIPT_DIR/plot_results.py" "$CSV_FILE" --outdir "$RESULTS_DIR"
+    else
+        warn "matplotlib not installed — skipping chart generation"
+    fi
 }
 
 main "$@"
