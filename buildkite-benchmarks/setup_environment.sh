@@ -46,7 +46,7 @@ install_system_packages() {
         libxslt1-dev libzmq3-dev llvm-dev moreutils net-tools ninja-build \
         pkg-config python3-dev python3-yaml python3-nose redis-server \
         rsync ruby ruby-dev sudo time unzip wget gnupg lsb-release \
-        apt-utils software-properties-common bc
+        apt-utils software-properties-common bc dub
 
     # Extra packages required to build GCC/GDC from source.
     log "Installing GCC build prerequisites"

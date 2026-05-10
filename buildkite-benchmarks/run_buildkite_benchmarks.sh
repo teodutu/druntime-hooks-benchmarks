@@ -55,6 +55,7 @@ REPORT_FILE="${REPORT_FILE:-$RESULTS_DIR/report.md}"
 
 mkdir -p "$PROJECTS_DIR" "$RESULTS_DIR" "$LOG_DIR" "$COMPILER_BUILD_MARKERS_DIR"
 : > "$ERROR_LOG"
+rm -f "$LOG_DIR"/*.log  # clear stale per-project logs from previous runs
 
 # Use half the number of cores so the system doesn't freeze.
 NPROC="$(($(nproc) / 2))"
@@ -143,7 +144,7 @@ declare -A RESULTS
 #-------------------------------------------------------------------------------
 # Helpers
 #-------------------------------------------------------------------------------
-log()  { printf '\033[1;34m[bench]\033[0m %s\n' "$*"; }
+log()  { printf '\033[1;34m[bench]\033[0m %s\n' "$*" >&2; }
 warn() { printf '\033[1;33m[bench]\033[0m %s\n' "$*" >&2; }
 err()  { printf '\033[1;31m[bench]\033[0m %s\n' "$*" >&2; }
 
@@ -182,14 +183,40 @@ project_ref_for() {
 }
 
 # Discover latest semver-ish tag from a remote URL; fall back to "master".
+# Optionally constrain to tags created before $compiler_date (so projects that
+# require a newer compiler frontend than $compiler aren't picked).
 discover_latest_tag() {
     local url="$1"
-    local tag
-    tag=$(git ls-remote --tags "$url" 2>/dev/null \
+    local compiler_date="${2:-}"
+    local tags
+    tags=$(git ls-remote --tags "$url" 2>/dev/null \
         | sed -n 's|.*refs/tags/\(v\?[0-9]*\.[0-9]*\.[0-9]*$\)|\1|p' \
-        | sort --version-sort \
-        | tail -n 1)
-    echo "${tag:-master}"
+        | sort --version-sort)
+    if [[ -z "$tags" ]]; then
+        echo "master"
+        return
+    fi
+    if [[ -z "$compiler_date" ]]; then
+        echo "$tags" | tail -n 1
+        return
+    fi
+    # Filter: keep only tags whose underlying commit is <= $compiler_date.
+    local repo_dir best=""
+    repo_dir=$(pwd)
+    local tag tag_date
+    while IFS= read -r tag; do
+        [[ -z "$tag" ]] && continue
+        tag_date=$(git -C "$repo_dir" log -1 --format=%ci "refs/tags/$tag" 2>/dev/null) || continue
+        # Compare YYYY-MM-DD strings.
+        if [[ "${tag_date:0:10}" < "${compiler_date:0:10}" || "${tag_date:0:10}" == "${compiler_date:0:10}" ]]; then
+            best="$tag"
+        fi
+    done <<<"$tags"
+    if [[ -z "$best" ]]; then
+        # Nothing pre-dates the compiler; fall back to oldest tag, then master.
+        best=$(echo "$tags" | head -n 1)
+    fi
+    echo "${best:-master}"
 }
 
 # Ensure project clone exists; doesn't switch refs.
@@ -226,7 +253,8 @@ prepare_project_ref() {
     local ref
     ref="$(project_ref_for "$project")"
     if [[ -z "$ref" ]]; then
-        ref="$(discover_latest_tag "https://github.com/$(project_repo_name "$project")")"
+        # Date-aware tag discovery uses the local clone (already in $dir).
+        ref="$(discover_latest_tag "https://github.com/$(project_repo_name "$project")" "$compiler_date")"
     fi
 
     # If ref is a branch, try to find the latest commit on it before $compiler_date.
@@ -264,9 +292,6 @@ project_test_command() {
             ;;
         "atilaneves/unit-threaded"|"libmir/mir-algorithm"|"libmir/mir"|"pbackus/sumtype"|"aliak00/optional")
             echo "dub test --compiler=$DC"
-            ;;
-        "d-widget-toolkit/dwt")
-            echo "dub build --compiler=$DC"
             ;;
         "snazzy-d/sdc")
             echo "dub build :sdfmt --compiler=$DC"
@@ -314,6 +339,12 @@ should_skip_project() {
         "vibe-d/vibe.d+base"|"vibe-d/vibe.d+tests"|"vibe-d/vibe.d+examples"|\
         "vibe-d/vibe-core+epoll"|"vibe-d/vibe-core+select"|"dlang/tools"|\
         "symmetryinvestments/autowrap")
+            return 0 ;;
+        # dwt isn't a dub project (uses tools/test_snippets.d).
+        "d-widget-toolkit/dwt")
+            return 0 ;;
+        # ddox tests start a vibe-d HTTP server that never exits.
+        "rejectedsoftware/ddox")
             return 0 ;;
     esac
     return 1
@@ -458,12 +489,41 @@ bench_project() {
     dir="$(project_dir "$project")"
     pushd "$dir" >/dev/null
 
-    # Warm up: build once to make sure the project is buildable. If this
-    # fails we record an error and bail out; if it succeeds, dub will reuse
-    # the build cache for the timed runs.
-    local build_cmd="dub build --compiler=$DC"
-    if ! eval "$build_cmd" >>"$plog" 2>&1; then
-        warn "Build failed for $project"
+    # Make sure sub-processes (dub itself, unit-threaded test runners, ddox,
+    # etc.) can find the freshly built `ldc2` / `ldmd2` on PATH. The directory
+    # containing $DC takes priority so we don't accidentally pick a system one.
+    local dc_dir
+    dc_dir="$(dirname "$(realpath "$DC")")"
+    local saved_path="$PATH"
+    export PATH="$dc_dir:$PATH"
+
+    # Export DC so dub can resolve $DC references in dub.json/sdl.
+    local saved_dc="${DC_ENV_SAVED:-}"
+    export DC
+    DC_ENV_SAVED="$DC"
+
+    # Set DFLAGS to tolerate deprecations. GDC treats them as errors via
+    # -Werror=deprecated; LDC's newer frontend rejects implicit string
+    # concatenation and other deprecated constructs.
+    # NOTE: DFLAGS *overrides* the dub build type, so we must re-add the
+    # -unittest flag (LDC: -unittest, GDC: -funittest) so that
+    # `version(unittest)` blocks (test mains, etc.) are still compiled.
+    local saved_dflags="${DFLAGS:-}"
+    case "$compiler" in
+        gdc)  export DFLAGS="-Wno-error -funittest" ;;
+        ldc)  export DFLAGS="-d -unittest" ;;
+    esac
+
+    local test_cmd
+    test_cmd=$(project_test_command "$project" "$DC")
+
+    # Warm-up: run the test command once and discard its timing. This makes
+    # sure dependencies are fetched, the project actually builds, and dub's
+    # build cache is populated before the timed runs.
+    if ! eval "$test_cmd" >>"$plog" 2>&1; then
+        warn "Warm-up build/test failed for $project"
+        export PATH="$saved_path"
+        export DFLAGS="$saved_dflags"
         popd >/dev/null
         RESULTS["$key"]="N/A"$'\t'"N/A"
         {
@@ -475,15 +535,9 @@ bench_project() {
         return 0
     fi
 
-    local test_cmd
-    test_cmd=$(project_test_command "$project" "$DC")
-
     local samples=()
     local failed=0
     for ((i=1; i<=NUM_ITERATIONS; i++)); do
-        # Force re-test so the timing actually measures something each run.
-        # `dub test` will rebuild only if dependencies changed; we accept
-        # that this includes link/test runtime.
         local t0 t1 dt
         t0=$(date +%s.%N)
         if ! eval "$test_cmd" >>"$plog" 2>&1; then
@@ -496,6 +550,8 @@ bench_project() {
         echo "[iter $i] $dt s" >>"$plog"
     done
 
+    export PATH="$saved_path"
+    export DFLAGS="$saved_dflags"
     popd >/dev/null
 
     if (( failed )); then
