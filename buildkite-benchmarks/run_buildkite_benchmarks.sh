@@ -299,6 +299,45 @@ project_test_command() {
         "ikod/dlang-requests")
             echo "dub build -c std --compiler=$DC"
             ;;
+        # --- Bespoke builds (projects that don't use plain dub test) ---
+        "higgsjs/Higgs")
+            echo "make -C source test DC=$DC"
+            ;;
+        "vibe-d/vibe.d+base")
+            echo "VIBED_DRIVER=vibe-core PARTS=builds,unittests ./run-ci.sh"
+            ;;
+        "vibe-d/vibe.d+tests")
+            echo "VIBED_DRIVER=vibe-core PARTS=tests ./run-ci.sh"
+            ;;
+        "vibe-d/vibe.d+examples")
+            echo "VIBED_DRIVER=vibe-core PARTS=examples ./run-ci.sh"
+            ;;
+        "vibe-d/vibe-core+epoll")
+            echo "CONFIG=epoll ./run-ci.sh"
+            ;;
+        "vibe-d/vibe-core+select")
+            echo "CONFIG=select ./run-ci.sh"
+            ;;
+        "dlang/tools")
+            # tools Makefile uses DMD= variable; ldmd2 is dmd-compatible.
+            local dmd_compat
+            dmd_compat="$(dirname "$(realpath "$DC")")/ldmd2"
+            if [[ ! -x "$dmd_compat" ]]; then
+                dmd_compat="$DC"  # fallback to DC itself (gdc)
+            fi
+            echo "make -f posix.mak all DMD='$dmd_compat' DFLAGS= -j$NPROC"
+            ;;
+        "d-widget-toolkit/dwt")
+            # dwt tests require running tools/test_snippets.d; just build.
+            echo "dub build --compiler=$DC"
+            ;;
+        "rejectedsoftware/ddox")
+            # ddox tests start a vibe-d HTTP server that never exits; just build.
+            echo "dub build --compiler=$DC"
+            ;;
+        "symmetryinvestments/autowrap")
+            echo "dub test --compiler=$DC"
+            ;;
         *)
             # Default: plain `dub test`.
             echo "dub test --compiler=$DC"
@@ -325,26 +364,53 @@ project_pre_test_setup() {
                 (cd ../.. && git submodule update) 2>/dev/null || true
             fi
             ;;
+        "vibe-d/vibe.d+tests")
+            # Remove spurious tests that fail outside full CI
+            rm -f tests/tls-with-pkcs11/*.d 2>/dev/null || true
+            ;;
+        "vibe-d/vibe-core+epoll"|"vibe-d/vibe-core+select")
+            # Remove spurious tests that fail outside full CI
+            rm -f tests/tls-with-pkcs11/*.d 2>/dev/null || true
+            ;;
+        "symmetryinvestments/autowrap")
+            # autowrap needs pyd fetched and setup
+            dub fetch --cache=local pyd 2>/dev/null || true
+            if command -v python3 >/dev/null; then
+                dub run pyd:setup 2>/dev/null || true
+                [[ -f pyd_set_env_vars.sh ]] && source pyd_set_env_vars.sh python3 2>/dev/null || true
+                export PYTHON_LIB_DIR="/usr/lib"
+            fi
+            ;;
+        "dlang-community/libdparse")
+            git submodule update --init --recursive 2>/dev/null || true
+            ;;
     esac
     popd >/dev/null
 }
 
-# Skip projects that are too involved or unsuitable for a `dub test` benchmark.
+# Skip projects that are too involved or impossible to benchmark.
 should_skip_project() {
     case "$1" in
-        # These use bespoke build systems (Make/Ninja/run-ci.sh) and
-        # benchmarking them via dub doesn't make sense.
-        "ldc-developers/ldc"|"higgsjs/Higgs"|"dlang/phobos"|"dlang/phobos+no-autodecode"|\
-        "sociomantic-tsunami/ocean"|"sociomantic-tsunami/swarm"|"sociomantic-tsunami/turtle"|\
+        # Full bootstrap build — not a meaningful benchmark target.
+        "ldc-developers/ldc")
+            return 0 ;;
+        # Requires dmd/druntime checkout & full Make-based build.
+        "dlang/phobos"|"dlang/phobos+no-autodecode")
+            return 0 ;;
+        # Dead / archived repos with custom Make + old toolchain.
+        "sociomantic-tsunami/ocean"|"sociomantic-tsunami/swarm"|"sociomantic-tsunami/turtle")
+            return 0 ;;
+        # stdx-allocator dependency has a static assert incompatible with all
+        # our compiler versions; run-ci.sh also needs a full CI environment.
         "vibe-d/vibe.d+base"|"vibe-d/vibe.d+tests"|"vibe-d/vibe.d+examples"|\
-        "vibe-d/vibe-core+epoll"|"vibe-d/vibe-core+select"|"dlang/tools"|\
-        "symmetryinvestments/autowrap")
-            return 0 ;;
-        # dwt isn't a dub project (uses tools/test_snippets.d).
-        "d-widget-toolkit/dwt")
-            return 0 ;;
-        # ddox tests start a vibe-d HTTP server that never exits.
+        "vibe-d/vibe-core+epoll"|"vibe-d/vibe-core+select"|\
         "rejectedsoftware/ddox")
+            return 0 ;;
+        # Makefile uses DMD-specific flags (-debug, -dip25); not LDC/GDC compatible.
+        "higgsjs/Higgs")
+            return 0 ;;
+        # Needs rdmd + Python bindings (pyd) setup not available in our env.
+        "symmetryinvestments/autowrap")
             return 0 ;;
     esac
     return 1
