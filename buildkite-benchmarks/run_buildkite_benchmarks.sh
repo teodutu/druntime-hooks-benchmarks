@@ -37,6 +37,13 @@ LDC_COMPILER_PATH="$LDC_REPO_PATH/build/bin/ldc2"
 GDC_INSTALL_DIR="$SCRIPT_DIR/gdc-install"
 GDC_COMPILER_PATH="$GDC_INSTALL_DIR/bin/gdc"
 
+# Wrapper that strips -Werror/-w from dub's response files so GDC treats
+# deprecation warnings as warnings, not errors.
+GDC_WRAPPER_PATH="$SCRIPT_DIR/bin/gdc-wrapper"
+
+# rdmd from the host LDC — needed by some dub pre-generate commands.
+RDMD_PATH="$SCRIPT_DIR/bin/rdmd"
+
 # NOTE: 38c60e5075f (the originally requested old GDC commit, Dec 2021)
 # does not build: its bundled D frontend miscompiles its own libphobos.
 # We use the closest preceding libphobos merge commit that builds cleanly.
@@ -319,13 +326,15 @@ project_test_command() {
             echo "CONFIG=select ./run-ci.sh"
             ;;
         "dlang/tools")
-            # tools Makefile uses DMD= variable; ldmd2 is dmd-compatible.
+            # tools Makefile uses DMD-style flags; only works with ldmd2.
             local dmd_compat
             dmd_compat="$(dirname "$(realpath "$DC")")/ldmd2"
-            if [[ ! -x "$dmd_compat" ]]; then
-                dmd_compat="$DC"  # fallback to DC itself (gdc)
+            if [[ -x "$dmd_compat" ]]; then
+                echo "make -f posix.mak all DMD='$dmd_compat' DFLAGS= -j$NPROC"
+            else
+                # GDC has no DMD-compatible wrapper; fall back to dub build.
+                echo "dub build --compiler=$DC"
             fi
-            echo "make -f posix.mak all DMD='$dmd_compat' DFLAGS= -j$NPROC"
             ;;
         "d-widget-toolkit/dwt")
             # dwt tests require running tools/test_snippets.d; just build.
@@ -561,23 +570,25 @@ bench_project() {
     local dc_dir
     dc_dir="$(dirname "$(realpath "$DC")")"
     local saved_path="$PATH"
-    export PATH="$dc_dir:$PATH"
+    # Add compiler bin dir + our bin/ (rdmd) to PATH.
+    export PATH="$dc_dir:$SCRIPT_DIR/bin:$PATH"
 
     # Export DC so dub can resolve $DC references in dub.json/sdl.
     local saved_dc="${DC_ENV_SAVED:-}"
     export DC
     DC_ENV_SAVED="$DC"
 
-    # Set DFLAGS to tolerate deprecations. GDC treats them as errors via
-    # -Werror=deprecated; LDC's newer frontend rejects implicit string
-    # concatenation and other deprecated constructs.
-    # NOTE: DFLAGS *overrides* the dub build type, so we must re-add the
-    # -unittest flag (LDC: -unittest, GDC: -funittest) so that
-    # `version(unittest)` blocks (test mains, etc.) are still compiled.
+    # Set DFLAGS to tolerate deprecations.
+    # For LDC:  -d allows deprecated constructs (implicit string concat etc.).
+    #           Setting DFLAGS causes dub to use the "$DFLAGS" build type;
+    #           dub test still generates a test runner and adds -unittest.
+    # For GDC:  the gdc-wrapper script strips -w/-Werror from response files
+    #           so we don't need DFLAGS overrides at all.  dub test naturally
+    #           adds -funittest via its "unittest" build type.
     local saved_dflags="${DFLAGS:-}"
     case "$compiler" in
-        gdc)  export DFLAGS="-Wno-error -funittest" ;;
-        ldc)  export DFLAGS="-d -unittest" ;;
+        gdc)  unset DFLAGS ;;
+        ldc)  export DFLAGS="-d" ;;
     esac
 
     local test_cmd
@@ -589,7 +600,7 @@ bench_project() {
     if ! eval "$test_cmd" >>"$plog" 2>&1; then
         warn "Warm-up build/test failed for $project"
         export PATH="$saved_path"
-        export DFLAGS="$saved_dflags"
+        if [[ -n "$saved_dflags" ]]; then export DFLAGS="$saved_dflags"; else unset DFLAGS; fi
         popd >/dev/null
         RESULTS["$key"]="N/A"$'\t'"N/A"
         {
@@ -617,7 +628,7 @@ bench_project() {
     done
 
     export PATH="$saved_path"
-    export DFLAGS="$saved_dflags"
+    if [[ -n "$saved_dflags" ]]; then export DFLAGS="$saved_dflags"; else unset DFLAGS; fi
     popd >/dev/null
 
     if (( failed )); then
@@ -722,7 +733,9 @@ main() {
     fi
 
     run_buildkite_with_compiler_repo ldc "$OLD_LDC_COMMIT" "$NEW_LDC_COMMIT" "$LDC_COMPILER_PATH"
-    run_buildkite_with_compiler_repo gdc "$OLD_GDC_COMMIT" "$NEW_GDC_COMMIT" "$GDC_COMPILER_PATH"
+
+    export GDC_REAL_PATH="$GDC_COMPILER_PATH"
+    run_buildkite_with_compiler_repo gdc "$OLD_GDC_COMMIT" "$NEW_GDC_COMMIT" "$GDC_WRAPPER_PATH"
 
     emit_report
 }

@@ -99,6 +99,41 @@ clone_compilers() {
     clone_repo "$GDC_REPO_URL" "$GDC_REPO_PATH" "GDC"
 }
 
+#-------------------------------------------------------------------------------
+# 3. Set up helper tools (rdmd, gdc-wrapper)
+#-------------------------------------------------------------------------------
+setup_helper_tools() {
+    local bin_dir="$SCRIPT_DIR/bin"
+    mkdir -p "$bin_dir"
+
+    # rdmd — needed by dub pre-generate commands in several projects (DCD,
+    # dfmt, dlang-tour/core, dstep).  Prefer one from a host LDC/DMD install.
+    if [[ ! -e "$bin_dir/rdmd" ]]; then
+        local rdmd_src=""
+        # Search common install locations.
+        for candidate in \
+            "$HOME/dlang/ldc-"*/bin/rdmd \
+            "$HOME/dlang/dmd-"*/linux/bin64/rdmd \
+            "$(command -v rdmd 2>/dev/null || true)"; do
+            if [[ -x "$candidate" ]]; then
+                rdmd_src="$candidate"
+                break
+            fi
+        done
+        if [[ -n "$rdmd_src" ]]; then
+            ln -sf "$rdmd_src" "$bin_dir/rdmd"
+            log "Linked rdmd -> $rdmd_src"
+        else
+            warn "No rdmd found.  Some projects (DCD, dfmt, dlang-tour) may fail."
+        fi
+    else
+        log "rdmd already set up at $bin_dir/rdmd"
+    fi
+
+    # gdc-wrapper — already ships in bin/; just make sure it's executable.
+    chmod +x "$bin_dir/gdc-wrapper" 2>/dev/null || true
+}
+
 main() {
     if [[ "${1:-}" == "--no-apt" ]]; then
         log "Skipping system package installation (--no-apt)"
@@ -106,6 +141,7 @@ main() {
         install_system_packages
     fi
     clone_compilers
+    setup_helper_tools
     log "Environment setup complete."
     log "Next: bash $SCRIPT_DIR/run_buildkite_benchmarks.sh"
 }
