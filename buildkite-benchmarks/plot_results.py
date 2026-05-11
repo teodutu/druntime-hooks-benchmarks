@@ -61,12 +61,12 @@ def plot_lollipop(rows, compiler, outdir):
 
     # Propagate std devs into the percentage difference.
     # diff% = (new - old) / old * 100
-    # σ(diff%) = 100 * sqrt((σ_new/old)^2 + (new*σ_old/old^2)^2)
+    # σ(diff%) ≈ 100 * sqrt(σ_new² + σ_old²) / old
     diff_errs = []
     for r in rows:
-        o, n, so, sn = r["old_avg"], r["new_avg"], r["old_sd"], r["new_sd"]
+        o, so, sn = r["old_avg"], r["old_sd"], r["new_sd"]
         if o != 0:
-            err = 100 * math.sqrt((sn / o) ** 2 + (n * so / o ** 2) ** 2)
+            err = 100 * math.sqrt(sn ** 2 + so ** 2) / o
         else:
             err = 0.0
         diff_errs.append(err)
@@ -95,15 +95,15 @@ def plot_lollipop(rows, compiler, outdir):
     ax.set_yticks(list(y_pos))
     ax.set_yticklabels(projects, fontsize=8)
     ax.set_xlabel("Time difference (%)")
-    ax.set_title(f"{compiler.upper()} — Build-time change (non-template → template)")
+    ax.set_title(f"{compiler.upper()} — Test-time change (non-template → template)")
     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%+.1f%%"))
 
-    # Annotate each dot with its value.
+    # Annotate each dot with its value (placed above the lollipop line).
     for i, d in enumerate(diffs):
         ha = "left" if d >= 0 else "right"
         offset = 0.5 if d >= 0 else -0.5
-        ax.annotate(f"{d:+.1f}%", (d + offset, i),
-                     va="center", ha=ha, fontsize=7, color=colors[i])
+        ax.annotate(f"{d:+.1f}%", (d + offset, i - 0.3),
+                     va="bottom", ha=ha, fontsize=9, color=colors[i])
 
     ax.invert_yaxis()
     ax.grid(axis="x", alpha=0.3)

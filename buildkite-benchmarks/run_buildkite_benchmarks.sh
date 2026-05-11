@@ -5,7 +5,7 @@
 # Benchmarks the dlang-ci Buildkite project list against two commits of LDC
 # and two commits of GDC, and emits a Markdown report.
 #
-# Methodology (see ./prompt.md):
+# Methodology:
 #  - For each (compiler, commit_sha) pair:
 #      * Check out commit_sha in the compiler's source repo and build it.
 #      * For each project:
@@ -27,7 +27,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-NUM_ITERATIONS="${NUM_ITERATIONS:-100}"
+NUM_ITERATIONS="${NUM_ITERATIONS:-2}"
 
 LDC_REPO_PATH="${LDC_REPO_PATH:-$HOME/dlang/ldc}"
 GDC_REPO_PATH="${GDC_REPO_PATH:-$HOME/dlang/gdc}"
@@ -41,7 +41,7 @@ GDC_COMPILER_PATH="$GDC_INSTALL_DIR/bin/gdc"
 # deprecation warnings as warnings, not errors.
 GDC_WRAPPER_PATH="$SCRIPT_DIR/bin/gdc-wrapper"
 
-# rdmd from the host LDC — needed by some dub pre-generate commands.
+# rdmd from the host LDC - needed by some dub pre-generate commands.
 RDMD_PATH="$SCRIPT_DIR/bin/rdmd"
 
 # NOTE: 38c60e5075f (the originally requested old GDC commit, Dec 2021)
@@ -401,7 +401,7 @@ project_pre_test_setup() {
 # Skip projects that are too involved or impossible to benchmark.
 should_skip_project() {
     case "$1" in
-        # Full bootstrap build — not a meaningful benchmark target.
+        # Full bootstrap build - not a meaningful benchmark target.
         "ldc-developers/ldc")
             return 0 ;;
         # Requires dmd/druntime checkout & full Make-based build.
@@ -658,12 +658,14 @@ run_buildkite_with_compiler_date() {
 
 run_buildkite_with_compiler_repo() {
     local compiler="$1" old_sha="$2" new_sha="$3" DC="$4"
-    local old_date new_date
+    local old_date
     old_date=$(prepare_compiler "$compiler" "$old_sha")
     run_buildkite_with_compiler_date "$compiler" "$old_sha" "$old_date" "$DC"
 
-    new_date=$(prepare_compiler "$compiler" "$new_sha")
-    run_buildkite_with_compiler_date "$compiler" "$new_sha" "$new_date" "$DC"
+    # Use old_date for the new compiler too, so both runs benchmark
+    # the same project versions (old package sha + new compiler sha).
+    prepare_compiler "$compiler" "$new_sha" >/dev/null
+    run_buildkite_with_compiler_date "$compiler" "$new_sha" "$old_date" "$DC"
 }
 
 #-------------------------------------------------------------------------------
@@ -774,7 +776,7 @@ main() {
     if python3 -c 'import matplotlib' 2>/dev/null; then
         python3 "$SCRIPT_DIR/plot_results.py" "$CSV_FILE" --outdir "$RESULTS_DIR"
     else
-        warn "matplotlib not installed — skipping chart generation"
+        warn "matplotlib not installed - skipping chart generation"
     fi
 }
 
