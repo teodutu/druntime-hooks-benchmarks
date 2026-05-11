@@ -27,15 +27,17 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-NUM_ITERATIONS="${NUM_ITERATIONS:-2}"
+NUM_ITERATIONS="${NUM_ITERATIONS:-100}"
 
 LDC_REPO_PATH="${LDC_REPO_PATH:-$HOME/dlang/ldc}"
 GDC_REPO_PATH="${GDC_REPO_PATH:-$HOME/dlang/gdc}"
+DMD_REPO_PATH="${DMD_REPO_PATH:-$HOME/dlang/dmd}"
 
 # Path to compiler binaries inside their source/build trees.
 LDC_COMPILER_PATH="$LDC_REPO_PATH/build/bin/ldc2"
 GDC_INSTALL_DIR="$SCRIPT_DIR/gdc-install"
 GDC_COMPILER_PATH="$GDC_INSTALL_DIR/bin/gdc"
+DMD_COMPILER_PATH="$DMD_REPO_PATH/generated/linux/release/64/dmd"
 
 # Wrapper that strips -Werror/-w from dub's response files so GDC treats
 # deprecation warnings as warnings, not errors.
@@ -52,6 +54,9 @@ NEW_GDC_COMMIT="${NEW_GDC_COMMIT:-2ead01297ced8fd03387021025222a839503eaf6}"
 
 OLD_LDC_COMMIT="${OLD_LDC_COMMIT:-5b0bd6865f2458b2c3fd00f7ef9652086f2d875d}"
 NEW_LDC_COMMIT="${NEW_LDC_COMMIT:-4b76bab1456db5e1704a7db088e33bd83e8b1419}"
+
+OLD_DMD_COMMIT="${OLD_DMD_COMMIT:-1ece3ea0c9188fa0a28210dcd15f511129884a9c}"
+NEW_DMD_COMMIT="${NEW_DMD_COMMIT:-c2c8189599b894771393100ceae1ca2da30202d0}"
 
 PROJECTS_DIR="$SCRIPT_DIR/projects"
 RESULTS_DIR="$SCRIPT_DIR/results"
@@ -488,6 +493,18 @@ build_gdc() {
     mark_compiler_built gdc "$sha"
 }
 
+build_dmd() {
+    local sha="$1"
+    log "Building DMD @ $sha (via build_dmd.sh)"
+    DMD_REPO_PATH="$DMD_REPO_PATH" NPROC="$NPROC" \
+        "$SCRIPT_DIR/build_dmd.sh" "$sha"
+    if [[ ! -x "$DMD_COMPILER_PATH" ]]; then
+        err "DMD build did not produce $DMD_COMPILER_PATH"
+        return 1
+    fi
+    mark_compiler_built dmd "$sha"
+}
+
 # Check out a compiler commit, build (if not cached), and echo the commit date.
 prepare_compiler() {
     local compiler="$1" sha="$2"
@@ -495,6 +512,7 @@ prepare_compiler() {
     case "$compiler" in
         ldc) repo_path="$LDC_REPO_PATH" ;;
         gdc) repo_path="$GDC_REPO_PATH" ;;
+        dmd) repo_path="$DMD_REPO_PATH" ;;
         *)   err "Unknown compiler $compiler"; return 1 ;;
     esac
 
@@ -511,6 +529,7 @@ prepare_compiler() {
         case "$compiler" in
             ldc) build_ldc "$sha" ;;
             gdc) build_gdc "$sha" ;;
+            dmd) build_dmd "$sha" ;;
         esac
     fi
 
@@ -590,6 +609,7 @@ bench_project() {
     case "$compiler" in
         gdc)  unset DFLAGS ;;
         ldc)  export DFLAGS="-d" ;;
+        dmd)  export DFLAGS="-d" ;;
     esac
 
     local test_cmd
@@ -709,6 +729,7 @@ emit_report() {
         echo "_Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')_"
         echo "_Iterations per project: ${NUM_ITERATIONS}_"
         echo
+        emit_table_section "DMD Benchmarks" dmd "$OLD_DMD_COMMIT" "$NEW_DMD_COMMIT"
         emit_table_section "LDC Benchmarks" ldc "$OLD_LDC_COMMIT" "$NEW_LDC_COMMIT"
         emit_table_section "GDC Benchmarks" gdc "$OLD_GDC_COMMIT" "$NEW_GDC_COMMIT"
         echo "Errors logged to: $ERROR_LOG"
@@ -739,6 +760,7 @@ emit_csv() {
 
 emit_csv_file() {
     {
+        emit_csv dmd "$OLD_DMD_COMMIT" "$NEW_DMD_COMMIT"
         emit_csv ldc "$OLD_LDC_COMMIT" "$NEW_LDC_COMMIT"
         emit_csv gdc "$OLD_GDC_COMMIT" "$NEW_GDC_COMMIT"
     } > "$CSV_FILE"
@@ -750,11 +772,16 @@ emit_csv_file() {
 #-------------------------------------------------------------------------------
 main() {
     log "NUM_ITERATIONS=$NUM_ITERATIONS"
+    log "DMD repo: $DMD_REPO_PATH  (binary: $DMD_COMPILER_PATH)"
     log "LDC repo: $LDC_REPO_PATH  (binary: $LDC_COMPILER_PATH)"
     log "GDC repo: $GDC_REPO_PATH  (binary: $GDC_COMPILER_PATH)"
     log "Projects dir: $PROJECTS_DIR"
     log "Results dir : $RESULTS_DIR"
 
+    if [[ ! -d "$DMD_REPO_PATH/.git" ]]; then
+        err "DMD repo missing at $DMD_REPO_PATH; run setup_environment.sh first"
+        exit 1
+    fi
     if [[ ! -d "$LDC_REPO_PATH/.git" ]]; then
         err "LDC repo missing at $LDC_REPO_PATH; run setup_environment.sh first"
         exit 1
@@ -763,6 +790,8 @@ main() {
         err "GDC repo missing at $GDC_REPO_PATH; run setup_environment.sh first"
         exit 1
     fi
+
+    run_buildkite_with_compiler_repo dmd "$OLD_DMD_COMMIT" "$NEW_DMD_COMMIT" "$DMD_COMPILER_PATH"
 
     run_buildkite_with_compiler_repo ldc "$OLD_LDC_COMMIT" "$NEW_LDC_COMMIT" "$LDC_COMPILER_PATH"
 
