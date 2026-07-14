@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From Runtime Reflection to Compile-Time Specialization</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/github.css">
+    <style>
+        :root {
+            --r-background-color: #ffffff;
+            --r-main-font: 'Arial', sans-serif;
+            --r-heading-font: 'Arial', sans-serif;
+            --r-code-font: 'Roboto Mono', 'Courier New', monospace;
+            --r-main-color: #222222;
+            --r-heading-color: #111111;
+            --r-link-color: #0366d6;
+            --accent-blue: #0366d6;
+            --accent-green: #2da44e;
+            --accent-orange: #cf222e;
+            --accent-yellow: #9a6700;
+        }
+        .reveal {
+            font-size: 32px;
+        }
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-transform: none;
+            font-weight: 700;
+        }
+        .reveal h1 { font-size: 1.8em; }
+        .reveal h2 { font-size: 1.3em; color: var(--accent-blue); }
+        .reveal h3 { font-size: 1.0em; color: var(--accent-green); }
+        .reveal code {
+            font-family: var(--r-code-font);
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #24292f;
+        }
+        .reveal pre code {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 0.55em;
+            line-height: 1.4;
+            max-height: 520px;
+        }
+        .reveal .slide-number {
+            font-size: 16px;
+            color: #333;
+            background: rgba(0,0,0,0.05);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+        .highlight-box {
+            border: 3px solid var(--accent-orange);
+            border-radius: 6px;
+            padding: 4px 8px;
+            display: inline-block;
+        }
+        .highlight-green {
+            border-color: var(--accent-green);
+        }
+        .highlight-blue {
+            border-color: var(--accent-blue);
+        }
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+        .three-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+            text-align: center;
+        }
+        .problem-card, .solution-card {
+            background: #fff5f5;
+            border-left: 4px solid var(--accent-orange);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 10px 0;
+            font-size: 0.75em;
+            text-align: left;
+        }
+        .solution-card {
+            background: #f0fff4;
+            border-left-color: var(--accent-green);
+        }
+        .big-number {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+        .big-number.orange {
+            color: var(--accent-orange);
+        }
+        .big-number.blue {
+            color: var(--accent-blue);
+        }
+        .subtitle {
+            font-size: 0.6em;
+            color: #666;
+            margin-top: 0.3em;
+        }
+        .authors {
+            font-size: 0.55em;
+            color: #555;
+            margin-top: 1em;
+        }
+        .pipeline-box {
+            display: inline-block;
+            background: #f0f7ff;
+            border: 2px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 10px 18px;
+            margin: 5px;
+            font-size: 0.7em;
+        }
+        .pipeline-arrow {
+            display: inline-block;
+            font-size: 1.5em;
+            color: var(--accent-blue);
+            vertical-align: middle;
+            margin: 0 5px;
+        }
+        .table-container {
+            font-size: 0.55em;
+        }
+        .table-container table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .table-container th {
+            background: #f0f7ff;
+            padding: 8px 10px;
+            border: 1px solid #d0d7de;
+        }
+        .table-container td {
+            padding: 6px 10px;
+            border: 1px solid #d0d7de;
+        }
+        .table-container tr:nth-child(even) {
+            background: #f6f8fa;
+        }
+        .gain-bar {
+            display: inline-block;
+            height: 22px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+            border-radius: 4px;
+            margin: 2px 0;
+            vertical-align: middle;
+        }
+        .tag {
+            display: inline-block;
+            background: #ddf4ff;
+            border-radius: 12px;
+            padding: 3px 12px;
+            font-size: 0.6em;
+            margin: 3px;
+            color: #0366d6;
+        }
+        .tag.done {
+            background: #dcffe4;
+            color: #1a7f37;
+        }
+        .tag.new {
+            background: #ffebe9;
+            color: #cf222e;
+        }
+        .dimmed {
+            opacity: 0.5;
+        }
+        .reveal section img {
+            border: none;
+            box-shadow: none;
+            background: none;
+        }
+        .methodology-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0;
+            font-size: 0.75em;
+        }
+        .step-num {
+            background: var(--accent-blue);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .footer-note {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.4em;
+            color: #999;
+        }
+        .reveal ul {
+            list-style: none;
+            padding: 0;
+        }
+        .reveal ul li::before {
+            content: "▸ ";
+            color: var(--accent-blue);
+        }
+        .reveal ul li {
+            margin: 0.4em 0;
+        }
+        .key-result {
+            background: #f0fff4;
+            border: 1px solid var(--accent-green);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============ SLIDE 1: Title ============ -->
+<section>
+    <h1 style="font-size:1.4em; line-height:1.3;">From Runtime Reflection to<br>Compile-Time Specialization</h1>
+    <p class="subtitle" style="font-size:0.7em; color:var(--accent-blue);">A Template-Based Approach to Runtime Libraries</p>
+    <p class="authors">
+        <strong>Teodor-Ștefan Duțu</strong>, Albert Guiman, Răzvan-George Nițu, Constantin Eduard Stăniloiu<br>
+        National University of Science and Technology Politehnica Bucharest
+    </p>
+    <p style="font-size:0.5em; color:#999; margin-top:2em;">ICSOFT 2026</p>
+</section>
+
+<!-- ============ SLIDE 2: Context ============ -->
+<section>
+    <h2>Runtime Libraries: the Performance Ceiling</h2>
+    <div style="margin-top:1em;">
+        <div class="two-col">
+            <div style="text-align:center;">
+                <p style="font-size:0.7em; color:#666;">Your Code</p>
+                <p style="font-size:1.5em; color:var(--accent-blue);">↓</p>
+                <p style="font-size:0.7em; color:#666;">Runtime Library</p>
+                <p style="font-size:1.5em; color:var(--accent-blue);">↓</p>
+                <p style="font-size:0.7em; color:#666;">Operating System</p>
+            </div>
+            <div>
+                <div class="problem-card">
+                    JS is <strong>8x</strong> slower than C++
+                </div>
+                <div class="problem-card">
+                    Python is <strong>29x</strong> slower than C++
+                </div>
+                <div class="solution-card">
+                    Runtime design is the <strong>primary</strong> determinant
+                </div>
+                <p style="font-size:0.45em; color:#999; margin-top:1em;">Lion et al., USENIX ATC 2022</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3: D Language ============ -->
+<section>
+    <h2>The D Programming Language</h2>
+    <div class="three-col" style="margin-top:1em;">
+        <div>
+            <p style="font-size:1.5em; font-weight:bold; color:var(--accent-blue);">C/C++</p>
+            <p style="font-size:0.65em;">level<br><strong>performance</strong></p>
+        </div>
+        <div>
+            <p style="font-size:1.2em; font-weight:bold; color:var(--accent-green);"><code>@safe</code></p>
+            <p style="font-size:0.65em;">built-in<br><strong>memory safety</strong></p>
+        </div>
+        <div>
+            <p style="font-size:1.2em; font-weight:bold; color:var(--accent-orange);">T!()</p>
+            <p style="font-size:0.65em;">first-class<br><strong>templates</strong></p>
+        </div>
+    </div>
+    <div style="margin-top:1.2em;">
+        <div class="three-col" style="font-size:0.6em;">
+            <div class="pipeline-box">DMD<br><span style="font-size:0.8em;color:#666;">Reference</span></div>
+            <div class="pipeline-box">LDC<br><span style="font-size:0.8em;color:#666;">LLVM</span></div>
+            <div class="pipeline-box">GDC<br><span style="font-size:0.8em;color:#666;">GCC</span></div>
+        </div>
+        <p style="font-size:0.55em; color:#666; margin-top:0.5em;">Three compilers, one shared frontend</p>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4: What are Hooks ============ -->
+<section>
+    <h2>DRuntime Hooks: Lowering</h2>
+    <pre><code class="language-d">// What you write:
+a ~= b;
+
+// What the compiler generates:
+_d_arrayappendT(typeid(typeof(a)), cast(byte[])a, cast(byte[])b);</code></pre>
+    <p style="font-size:0.65em; margin-top:1em;">The compiler <span style="color:var(--accent-blue);">lowers</span> high-level expressions into runtime library calls</p>
+    <p style="font-size:0.55em; color:#666;">Array ops, casting, allocation, comparison, ...</p>
+</section>
+
+<!-- ============ SLIDE 5: The Problem - TypeInfo ============ -->
+<section>
+    <h2>The <code>TypeInfo</code> Bottleneck</h2>
+    <div style="margin-top:0.8em;">
+        <div class="problem-card">
+            <strong style="color:var(--accent-orange);">Runtime dispatch:</strong> type properties fetched via virtual calls, despite being known at compile time
+        </div>
+        <div class="problem-card">
+            <strong style="color:var(--accent-orange);">No inlining:</strong> <code>extern(C)</code> linkage + separate static library
+        </div>
+        <div class="problem-card">
+            <strong style="color:var(--accent-orange);">Type erasure:</strong> parameters are <code>byte[]</code> / <code>void[]</code>, requiring unsafe casts
+        </div>
+    </div>
+    <p style="font-size:0.6em; margin-top:1em; color:#666;">Hooks predate D's template system - designed without generics</p>
+</section>
+
+<!-- ============ SLIDE 6: The Solution ============ -->
+<section>
+    <h2>The Fix: Templates</h2>
+    <div style="margin-top:0.8em;">
+        <div class="solution-card">
+            <strong style="color:var(--accent-green);">Compile-time resolution:</strong> type info deduced from template parameters
+        </div>
+        <div class="solution-card">
+            <strong style="color:var(--accent-green);">Inlining:</strong> template bodies can be inlined at call sites
+        </div>
+        <div class="solution-card">
+            <strong style="color:var(--accent-green);">Type safety:</strong> actual types preserved, no casts needed
+        </div>
+    </div>
+    <p style="font-size:0.6em; margin-top:1em; color:#666;">+ only instantiated hooks are linked - smaller binaries</p>
+</section>
+
+<!-- ============ SLIDE 7: Prior Work ============ -->
+<section>
+    <h2>Prior Work <span style="font-size:0.6em; color:#666;">(RoEduNet 2025)</span></h2>
+    <div class="two-col" style="margin-top:1em;">
+        <div style="text-align:center;">
+            <div class="big-number">25%</div>
+            <p style="font-size:0.65em;">performance gain<br><span style="color:#666;">with DMD only</span></p>
+        </div>
+        <div style="font-size:0.65em;">
+            <p style="color:var(--accent-green);">+ Methodology established</p>
+            <p style="color:var(--accent-green);">+ Subset of hooks converted</p>
+            <p style="color:var(--accent-orange);">- Only DMD (slow backend)</p>
+            <p style="color:var(--accent-orange);">- Not all 32 hooks</p>
+            <p style="color:var(--accent-orange);">- No engineering challenges documented</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8: This Paper ============ -->
+<section>
+    <h2>This Paper: Contributions</h2>
+    <div class="three-col" style="margin-top:1.5em;">
+        <div class="key-result">
+            <p style="font-size:1.5em; font-weight:bold; color:var(--accent-blue); margin-bottom:10px;">32</p>
+            <strong>Complete</strong><br>
+            <span style="font-size:0.7em;">All hooks<br>converted</span>
+        </div>
+        <div class="key-result">
+            <p style="font-size:1.5em; font-weight:bold; color:var(--accent-blue); margin-bottom:10px;">6+</p>
+            <strong>Challenges</strong><br>
+            <span style="font-size:0.7em;">Engineering guide<br>for migration</span>
+        </div>
+        <div class="key-result">
+            <p style="font-size:1.5em; font-weight:bold; color:var(--accent-blue); margin-bottom:10px;">2</p>
+            <strong>Compilers</strong><br>
+            <span style="font-size:0.7em;">LDC + GDC<br>benchmarks</span>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9: Lowering Architecture (using SVG) ============ -->
+<section>
+    <h2>Lowering Pipeline</h2>
+    <div style="margin-top:0.8em;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:0; flex-wrap:nowrap;">
+            <div class="pipeline-box" style="background:#fff5f5; border-color:var(--accent-orange); font-size:0.65em;">
+                Source Code<br><code style="font-size:0.9em;">a ~= b</code>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-box" style="font-size:0.6em;">
+                Semantic Analysis<br>
+                <code style="font-size:0.85em;">.lowering = _d_arrayappendT(a,b)</code>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-box" style="background:#f0fff4; border-color:var(--accent-green); font-size:0.65em;">
+                IR Generation<br>
+                <code style="font-size:0.85em;">emit call to template</code>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top:1.2em;">
+        <img src="dhook_lowering_pipeline.svg" alt="Lowering pipeline detail" style="max-width:85%; height:auto; border:1px solid #e0e0e0; border-radius:6px; padding:4px;">
+    </div>
+    <div style="margin-top:0.8em; font-size:0.55em;">
+        <p style="color:var(--accent-green);">+ Original expression preserved for error reporting and CTFE</p>
+        <p style="color:var(--accent-green);">+ All compilers benefit (shared frontend)</p>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10: Non-template hook ============ -->
+<section>
+    <h2>Before: Non-Template Hook</h2>
+    <pre><code class="language-d" data-line-numbers="|1-2|4-5|7-13|14-15">extern (C) void[] _d_arrayappendT(
+        const TypeInfo ti, ref byte[] x, byte[] y)
+{
+    auto tinext = unqualify(ti.next);
+    auto sizeelem = tinext.tsize;    // runtime lookup!
+
+    _d_arrayappendcTX(ti, x, y.length);
+    memcpy(x.ptr + length * sizeelem,
+           y.ptr,
+           y.length * sizeelem);
+
+    __doPostblit(x.ptr + length * sizeelem,
+                 y.length * sizeelem, tinext);
+    return x;
+}</code></pre>
+    <div style="font-size:0.55em; margin-top:0.5em;">
+        <span class="highlight-box" style="margin-right:12px;">extern(C): no inline</span>
+        <span class="highlight-box" style="margin-right:12px;">byte[]: type erasure</span>
+        <span class="highlight-box">TypeInfo: runtime dispatch</span>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11: Template hook ============ -->
+<section>
+    <h2>After: Template Hook</h2>
+    <pre><code class="language-d" data-line-numbers="|1-2|7|10-13|15-18">ref Tarr _d_arrayappendT(Tarr : T[], T)
+        (return ref scope Tarr x, scope Tarr y) @trusted
+{
+    auto length = x.length;
+    _d_arrayappendcTX(x, y.length);
+
+    static if (__traits(hasCopyConstructor, T)) {
+        size_t i;
+        try {
+            for (i = 0; i < y.length; ++i)
+                copyEmplace(y[i], x[length + i]);
+        }
+        catch (Exception o) { /* destroy in reverse */ throw o; }
+    } else {
+        if (y.length) {
+            memcpy(&x[length], &y[0], y.length * T.sizeof);
+            static if (__traits(hasPostblit, T))
+                try __doPostblit(x[length .. $], i);
+                catch (Exception o) { /* reverse destroy */ throw o; }
+        }
+    }
+    return x;
+}</code></pre>
+    <div style="font-size:0.55em; margin-top:0.5em;">
+        <span class="highlight-box highlight-green" style="margin-right:12px;">Tarr : T[] - real types</span>
+        <span class="highlight-box highlight-green" style="margin-right:12px;">static if - compile-time</span>
+        <span class="highlight-box highlight-green">exception safety</span>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12: Methodology ============ -->
+<section>
+    <h2>Conversion Methodology</h2>
+    <div style="margin-top:1em;">
+        <div class="methodology-step">
+            <div class="step-num">1</div>
+            <div>Implement template hook in DRuntime</div>
+        </div>
+        <div class="methodology-step">
+            <div class="step-num">2</div>
+            <div>Modify compiler lowering (semantic analysis)</div>
+        </div>
+        <div class="methodology-step">
+            <div class="step-num">3</div>
+            <div>Benchmark for performance regressions</div>
+        </div>
+        <div class="methodology-step">
+            <div class="step-num">4</div>
+            <div>Remove old hook from DRuntime</div>
+        </div>
+    </div>
+    <p style="font-size:0.55em; color:#666; margin-top:1.5em;">Applied independently to each of the 32 hooks</p>
+</section>
+
+<!-- ============ SLIDE 13: All 32 Hooks ============ -->
+<section>
+    <h2>All 32 Hooks Converted</h2>
+    <div class="two-col" style="font-size:0.55em; margin-top:0.5em;">
+        <div>
+            <h3 style="font-size:1.1em;">Prior Work</h3>
+            <p><span class="tag done">_d_arraysetlengthT</span></p>
+            <p><span class="tag done">_d_arrayappendT</span></p>
+            <p><span class="tag done">_d_arrayctor</span></p>
+            <p><span class="tag done">_d_arrayassign</span></p>
+            <p><span class="tag done">_d_arraycatnTX</span></p>
+            <p><span class="tag done">_d_newclass</span></p>
+            <p><span class="tag done">_d_newitemT</span></p>
+            <p><span class="tag done">_d_newarrayT</span></p>
+            <p><span class="tag done">_d_newarraymTX</span></p>
+            <p><span class="tag done">_d_newThrowable</span></p>
+        </div>
+        <div>
+            <h3 style="font-size:1.1em; color:var(--accent-orange) !important;">This Work</h3>
+            <p><span class="tag new">_d_arraysetcapacity</span></p>
+            <p><span class="tag new">_d_arrayshrinkfit</span></p>
+            <p><span class="tag new">_d_arrayappendcTX</span></p>
+            <p><span class="tag new">_equals (adEq2)</span></p>
+            <p><span class="tag new">_d_arrayliteralTX</span></p>
+            <p><span class="tag new">_d_cast</span> <span style="font-size:0.8em; color:#666;">(4 hooks merged)</span></p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 14: Engineering Challenges Intro ============ -->
+<section>
+    <h2>Engineering Challenges</h2>
+    <p style="font-size:0.7em; color:#555; margin-top:1em;">The methodology is simple.<br>The real-world migration is not.</p>
+    <div class="three-col" style="margin-top:1.5em; font-size:0.6em;">
+        <div class="problem-card" style="text-align:center;">
+            Cross-module<br>compilation
+        </div>
+        <div class="problem-card" style="text-align:center;">
+            Preview flag<br>conflicts
+        </div>
+        <div class="problem-card" style="text-align:center;">
+            Performance<br>regressions
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15: Cast Hooks ============ -->
+<section>
+    <h2>Challenge: Unifying Cast Hooks</h2>
+    <div style="margin-top:0.8em;">
+        <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; font-size:0.6em; margin-bottom:1em;">
+            <div class="pipeline-box" style="font-size:0.9em;">_d_dynamic_cast</div>
+            <div class="pipeline-box" style="font-size:0.9em;">_d_interface_cast</div>
+            <div class="pipeline-box" style="font-size:0.9em;">_d_class_cast</div>
+            <div class="pipeline-box" style="font-size:0.9em;">_d_paint_cast</div>
+        </div>
+        <p style="font-size:2em; text-align:center; color:var(--accent-blue); margin:0.2em 0;">↓</p>
+        <div style="text-align:center; margin-top:0.3em;">
+            <div class="pipeline-box" style="background:#f0fff4; border-color:var(--accent-green); font-size:1em;">
+                <code>_d_cast</code><br>
+                <span style="font-size:0.7em;">via Design by Introspection</span>
+            </div>
+        </div>
+    </div>
+    <div style="font-size:0.55em; margin-top:1em; color:#666;">
+        Issues found: <code>alias this</code> type retention, <code>shared</code> qualifier mismatches
+    </div>
+</section>
+
+<!-- ============ SLIDE 16: Array Literal Challenge ============ -->
+<section>
+    <h2>Challenge: Cross-Module Linking</h2>
+    <div class="two-col" style="margin-top:0.8em; font-size:0.65em;">
+        <div>
+            <div class="pipeline-box" style="width:90%; text-align:center;">
+                Module A<br>
+                <span style="font-size:0.8em; color:var(--accent-blue);">compiled with <code>-preview=dip1000</code></span><br>
+                <span style="font-size:0.8em;">array on stack, no template instantiation</span>
+            </div>
+        </div>
+        <div>
+            <div class="pipeline-box" style="width:90%; text-align:center;">
+                Module B<br>
+                <span style="font-size:0.8em; color:var(--accent-orange);">compiled without <code>dip1000</code></span><br>
+                <span style="font-size:0.8em;">assumes A already generated it</span>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top:1em; text-align:center;">
+        <div class="problem-card" style="display:inline-block;">
+            Undefined symbol at link time: neither module emitted the instantiation
+        </div>
+    </div>
+    <div class="solution-card" style="margin-top:0.8em; font-size:0.65em;">
+        <strong>Fix:</strong> Always emit template instances in the module that triggered the lowering
+    </div>
+</section>
+
+<!-- ============ SLIDE 17: Regression Fixes ============ -->
+<section>
+    <h2>Challenge: Detecting Regressions</h2>
+    <div style="margin-top:1em;">
+        <div class="two-col" style="font-size:0.65em;">
+            <div>
+                <div class="problem-card">
+                    <strong>_d_arrayctor</strong><br>
+                    Suboptimal branch prevented <code>memcpy</code> for trivially-copyable types
+                </div>
+                <div class="problem-card">
+                    <strong>aaKeys / aaValues</strong><br>
+                    75% regression: GC overhead from dynamic resizing instead of preallocation
+                </div>
+            </div>
+            <div>
+                <div class="solution-card">
+                    <strong>Takeaway:</strong><br>
+                    Passing tests does not imply good performance<br><br>
+                    Dedicated benchmarks are <em>essential</em> after any conversion
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18: Benchmark Methodology ============ -->
+<section>
+    <h2>Evaluation Setup</h2>
+    <div style="margin-top:1em; font-size:0.7em;">
+        <div class="three-col">
+            <div>
+                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">1M</p>
+                <p>iterations per hook</p>
+            </div>
+            <div>
+                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">20</p>
+                <p>runs averaged</p>
+            </div>
+            <div>
+                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">i5</p>
+                <p>single-threaded</p>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top:1.5em; font-size:0.6em;">
+        <p>Focus on <strong>LDC</strong> (LLVM) and <strong>GDC</strong> (GCC): production compilers</p>
+        <p style="color:#666;">DMD's backend does not optimize aggressively - not representative</p>
+    </div>
+</section>
+
+<!-- ============ SLIDE 19: LDC Results (SVG) ============ -->
+<section>
+    <h2>Results: LDC Performance Gains</h2>
+    <div style="margin-top:0.5em;">
+        <img src="ldc-performance.svg" alt="LDC performance gains" style="max-width:85%; height:auto;">
+    </div>
+    <p style="font-size:0.5em; color:#666; margin-top:0.5em;">Bars show midpoint of gain range; error bars indicate min-max across test configurations</p>
+</section>
+
+<!-- ============ SLIDE 20: GDC Problem ============ -->
+<section>
+    <h2>Results: GDC - The Weak Symbol Problem</h2>
+    <div style="margin-top:1em;">
+        <div class="problem-card" style="font-size:0.7em;">
+            GDC emits templates as <strong>weak symbols</strong> by default<br>
+            - linker can substitute function body from another translation unit<br>
+            - compiler <strong>cannot inline</strong> (One Definition Rule)
+        </div>
+        <div style="text-align:center; margin-top:1em; font-size:0.7em;">
+            <div style="display:inline-block; margin:0 20px; text-align:center;">
+                <div class="big-number orange" style="font-size:2em;">-38%</div>
+                <p>regression with defaults</p>
+            </div>
+        </div>
+        <div class="solution-card" style="font-size:0.7em; margin-top:1em;">
+            <strong>Fix:</strong> <code>-fno-weak-templates</code> - emit to COMDAT sections - inlining enabled
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 21: GDC Fixed Results (SVG) ============ -->
+<section>
+    <h2>GDC: Default vs. COMDAT</h2>
+    <div style="margin-top:0.5em;">
+        <img src="gdc-comparison.svg" alt="GDC comparison" style="max-width:80%; height:auto;">
+    </div>
+    <p style="font-size:0.5em; color:#666; margin-top:0.5em;">COMDAT brings GDC results in line with LDC</p>
+</section>
+
+<!-- ============ SLIDE 22: Trade-offs ============ -->
+<section>
+    <h2>The Trade-off</h2>
+    <div class="three-col" style="margin-top:1.5em;">
+        <div class="key-result" style="border-color:var(--accent-green);">
+            <div class="big-number" style="font-size:2.2em;">99%</div>
+            <p style="font-size:0.7em;">max perf gain</p>
+        </div>
+        <div class="key-result" style="border-color:var(--accent-blue);">
+            <div class="big-number blue" style="font-size:2.2em;">&lt;5%</div>
+            <p style="font-size:0.7em;">compilation time increase</p>
+        </div>
+        <div class="key-result" style="border-color:var(--accent-orange);">
+            <div class="big-number orange" style="font-size:2.2em;">&lt;15%</div>
+            <p style="font-size:0.7em;">binary size increase</p>
+        </div>
+    </div>
+    <p style="font-size:0.6em; margin-top:1.5em; color:#555;">Some hooks actually <em>reduce</em> compilation time<br>(removal of old TypeInfo code paths)</p>
+</section>
+
+<!-- ============ SLIDE 23: Results Table ============ -->
+<section>
+    <h2>Detailed Results (LDC)</h2>
+    <div class="table-container" style="margin-top:0.5em;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Hook</th>
+                    <th>Perf. Gain</th>
+                    <th>Lib Size change<br><span style="font-size:0.8em;">druntime / phobos</span></th>
+                    <th>Comp. Time change</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>_d_arrayctor</code></td>
+                    <td style="color:var(--accent-green);">30-99%</td>
+                    <td>+3.5% / -2.4%</td>
+                    <td>-2%</td>
+                </tr>
+                <tr>
+                    <td><code>_d_arrayappendT</code></td>
+                    <td style="color:var(--accent-green);">1-83%</td>
+                    <td>+2.2% / +2.5%</td>
+                    <td>+0.4%</td>
+                </tr>
+                <tr>
+                    <td><code>_d_arraycatnTX</code></td>
+                    <td style="color:var(--accent-green);">3-88%</td>
+                    <td>+2% / -5.5%</td>
+                    <td>-10.7%</td>
+                </tr>
+                <tr>
+                    <td><code>_d_arrayassign</code></td>
+                    <td style="color:var(--accent-green);">61-99%</td>
+                    <td>-0.5% / -4%</td>
+                    <td>-2.6%</td>
+                </tr>
+                <tr>
+                    <td><code>_d_newarraymTX</code></td>
+                    <td style="color:var(--accent-green);">18-46%</td>
+                    <td>+1% / -5.8%</td>
+                    <td>-10%</td>
+                </tr>
+                <tr>
+                    <td><code>_d_arraysetcapacity</code></td>
+                    <td style="color:var(--accent-green);">13-24%</td>
+                    <td>-0.8% / +1.2%</td>
+                    <td>+0.5%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ============ SLIDE 24: Beyond D ============ -->
+<section>
+    <h2>Applicability Beyond D</h2>
+    <p style="font-size:0.7em; color:#555; margin-top:1em;">Any language with:</p>
+    <div class="three-col" style="margin-top:1em;">
+        <div class="pipeline-box" style="font-size:0.8em;">
+            Templates /<br>Generics
+        </div>
+        <div class="pipeline-box" style="font-size:0.8em;">
+            Runtime<br>Library
+        </div>
+        <div class="pipeline-box" style="font-size:0.8em;">
+            Compile-time<br>type info
+        </div>
+    </div>
+    <div style="margin-top:1.5em; font-size:0.8em;">
+        <span class="tag" style="font-size:1em;">C++</span>
+        <span class="tag" style="font-size:1em;">Rust</span>
+        <span class="tag" style="font-size:1em;">Go</span>
+    </div>
+    <p style="font-size:0.55em; color:#666; margin-top:1em;">
+        Complementary: polymorphisation (Wood, 2020), function merging (Stirling et al., 2022)
+    </p>
+</section>
+
+<!-- ============ SLIDE 25: Architectural Benefits ============ -->
+<section>
+    <h2>Architectural Benefits</h2>
+    <div style="margin-top:1em;">
+        <div class="solution-card" style="font-size:0.7em;">
+            <strong>Unified pipeline:</strong> lowerings in shared frontend - all 3 compilers benefit
+        </div>
+        <div class="solution-card" style="font-size:0.7em;">
+            <strong>Modular runtime:</strong> only used hooks are instantiated and linked
+        </div>
+        <div class="solution-card" style="font-size:0.7em;">
+            <strong>Pay-as-you-go:</strong> particularly relevant for embedded / IoT
+        </div>
+        <div class="solution-card" style="font-size:0.7em;">
+            <strong>Bug discovery:</strong> new code paths exposed latent bugs (inlining, exception handling)
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 26: Conclusion ============ -->
+<section>
+    <h2>Conclusion</h2>
+    <div style="margin-top:1em;">
+        <div class="two-col">
+            <div style="text-align:center;">
+                <div class="big-number" style="font-size:2.5em;">32</div>
+                <p style="font-size:0.7em;">hooks converted</p>
+                <div class="big-number" style="font-size:2.5em; margin-top:0.3em;">99%</div>
+                <p style="font-size:0.7em;">max speedup</p>
+            </div>
+            <div style="font-size:0.65em; text-align:left;">
+                <p style="color:var(--accent-green);">+ Replace runtime reflection with compile-time generics</p>
+                <p style="color:var(--accent-green);">+ Minimal overhead: under 5% comp, under 15% size</p>
+                <p style="color:var(--accent-green);">+ Production-ready in LDC and GDC</p>
+                <p style="color:var(--accent-green);">+ Applicable to C++, Rust, Go</p>
+                <p style="color:var(--accent-green);">+ Modular, pay-as-you-go runtime</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+</div><!-- /slides -->
+</div><!-- /reveal -->
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        slideNumber: 'c/t',
+        transition: 'fade',
+        transitionSpeed: 'fast',
+        plugins: [ RevealHighlight ],
+        highlight: {
+            highlightOnLoad: true
+        }
+    });
+</script>
+</body>
+</html>
