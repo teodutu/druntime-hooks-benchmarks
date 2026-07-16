@@ -614,30 +614,47 @@ _d_arrayappendT(typeid(typeof(a)), cast(byte[])a, cast(byte[])b);</code></pre>
 <!-- ============ SLIDE 15: Cast Hooks ============ -->
 <section>
     <h2>Challenge: Unifying Cast Hooks</h2>
-    <div style="margin-top:0.8em;">
-        <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; font-size:0.6em; margin-bottom:1em;">
-            <div class="pipeline-box" style="font-size:0.9em;">_d_dynamic_cast</div>
-            <div class="pipeline-box" style="font-size:0.9em;">_d_interface_cast</div>
-            <div class="pipeline-box" style="font-size:0.9em;">_d_class_cast</div>
-            <div class="pipeline-box" style="font-size:0.9em;">_d_paint_cast</div>
-        </div>
-        <p style="font-size:2em; text-align:center; color:var(--accent-blue); margin:0.2em 0;">↓</p>
-        <div style="text-align:center; margin-top:0.3em;">
-            <div class="pipeline-box" style="background:#f0fff4; border-color:var(--accent-green); font-size:1em;">
-                <code>_d_cast</code><br>
-                <span style="font-size:0.7em;">via Design by Introspection</span>
+    <div class="two-col" style="margin-top:0.5em; font-size:0.65em;">
+        <div>
+            <p style="font-size:0.9em; color:var(--accent-blue); font-weight:bold;">Why runtime casts?</p>
+            <p style="font-size:0.85em;">Class hierarchies are <strong>polymorphic</strong> — the actual type of an object is only known at runtime (via vtable / <code>ClassInfo</code>)</p>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:0.5em;">
+                <div class="pipeline-box" style="font-size:0.8em;">_d_dynamic_cast<br><span style="color:#666;">downcast via vtable</span></div>
+                <div class="pipeline-box" style="font-size:0.8em;">_d_interface_cast<br><span style="color:#666;">interface table lookup</span></div>
+                <div class="pipeline-box" style="font-size:0.8em;">_d_class_cast<br><span style="color:#666;">class hierarchy check</span></div>
+                <div class="pipeline-box" style="font-size:0.8em;">_d_paint_cast<br><span style="color:#666;">qualifier reinterpret</span></div>
+            </div>
+            <p style="text-align:center; font-size:1.5em; color:var(--accent-blue); margin:0.3em 0;">↓</p>
+            <div style="text-align:center;">
+                <div class="pipeline-box" style="background:#f0fff4; border-color:var(--accent-green);">
+                    <code>_d_cast</code> selects cast kind via <strong>Design by Introspection</strong>
+                </div>
             </div>
         </div>
-    </div>
-    <div style="font-size:0.55em; margin-top:1em; color:#666;">
-        Issues found: <code>alias this</code> type retention, <code>shared</code> qualifier mismatches
+        <div>
+            <p style="font-size:0.9em; color:var(--accent-orange); font-weight:bold;">Issue: <code>alias this</code></p>
+            <p style="font-size:0.85em;"><code>alias this</code> allows a struct to <em>implicitly convert</em> to one of its members:</p>
+            <pre><code class="language-d" style="font-size:0.75em;">struct Reb(T, U) {
+    T original;
+    U stripped;
+    alias original this;
+}
+// Reb!(const(A), A) was passed
+// instead of the expected const(A)</code></pre>
+            <div class="solution-card" style="font-size:0.85em; margin-top:0.5em;">
+                <strong>Fix:</strong> unalias the expression before type checks in <code>expressionsem.d</code>
+            </div>
+        </div>
     </div>
 </section>
 
 <!-- ============ SLIDE 16: Array Literal Challenge ============ -->
 <section>
     <h2>Challenge: Cross-Module Linking</h2>
-    <div class="two-col" style="margin-top:0.8em; font-size:0.65em;">
+    <div style="font-size:0.55em; color:#666; margin-top:0.3em;">
+        <code>-preview=dip1000</code>: experimental flag enabling <code>scope</code> and return-ref checking - allows stack allocation of certain arrays
+    </div>
+    <div class="two-col" style="margin-top:0.6em; font-size:0.65em;">
         <div>
             <div class="pipeline-box" style="width:90%; text-align:center;">
                 Module A<br>
@@ -699,12 +716,12 @@ _d_arrayappendT(typeid(typeof(a)), cast(byte[])a, cast(byte[])b);</code></pre>
                 <p>iterations per hook</p>
             </div>
             <div>
-                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">20</p>
+                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">100</p>
                 <p>runs averaged</p>
             </div>
             <div>
-                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">i5</p>
-                <p>single-threaded</p>
+                <p style="font-size:1.8em; font-weight:bold; color:var(--accent-blue);">i5-12400</p>
+                <p>8GB RAM, single-threaded</p>
             </div>
         </div>
     </div>
