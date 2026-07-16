@@ -407,9 +407,6 @@ _d_arrayappendT(typeid(typeof(a)), cast(byte[])a, cast(byte[])b);</code></pre>
             </div>
         </div>
     </div>
-    <div style="margin-top:1.2em;">
-        <img src="dhook_lowering_pipeline.svg" alt="Lowering pipeline detail" style="max-width:85%; height:auto; border:1px solid #e0e0e0; border-radius:6px; padding:4px;">
-    </div>
     <div style="margin-top:0.8em; font-size:0.55em;">
         <p style="color:var(--accent-green);">+ Original expression preserved for error reporting and CTFE</p>
         <p style="color:var(--accent-green);">+ All compilers benefit (shared frontend)</p>
@@ -462,7 +459,7 @@ _d_arrayappendT(typeid(typeof(a)), cast(byte[])a, cast(byte[])b);</code></pre>
             memcpy(&x[length], &y[0], y.length * T.sizeof);
             static if (__traits(hasPostblit, T))
                 try __doPostblit(x[length .. $], i);
-                catch (Exception o) { /* reverse destroy */ throw o; }
+                catch (Exception o) { /* destroy in reverse */ throw o; }
         }
     }
     return x;
@@ -501,29 +498,99 @@ _d_arrayappendT(typeid(typeof(a)), cast(byte[])a, cast(byte[])b);</code></pre>
 <!-- ============ SLIDE 13: All 32 Hooks ============ -->
 <section>
     <h2>All 32 Hooks Converted</h2>
-    <div class="two-col" style="font-size:0.55em; margin-top:0.5em;">
-        <div>
-            <h3 style="font-size:1.1em;">Prior Work</h3>
-            <p><span class="tag done">_d_arraysetlengthT</span></p>
-            <p><span class="tag done">_d_arrayappendT</span></p>
-            <p><span class="tag done">_d_arrayctor</span></p>
-            <p><span class="tag done">_d_arrayassign</span></p>
-            <p><span class="tag done">_d_arraycatnTX</span></p>
-            <p><span class="tag done">_d_newclass</span></p>
-            <p><span class="tag done">_d_newitemT</span></p>
-            <p><span class="tag done">_d_newarrayT</span></p>
-            <p><span class="tag done">_d_newarraymTX</span></p>
-            <p><span class="tag done">_d_newThrowable</span></p>
-        </div>
-        <div>
-            <h3 style="font-size:1.1em; color:var(--accent-orange) !important;">This Work</h3>
-            <p><span class="tag new">_d_arraysetcapacity</span></p>
-            <p><span class="tag new">_d_arrayshrinkfit</span></p>
-            <p><span class="tag new">_d_arrayappendcTX</span></p>
-            <p><span class="tag new">_equals (adEq2)</span></p>
-            <p><span class="tag new">_d_arrayliteralTX</span></p>
-            <p><span class="tag new">_d_cast</span> <span style="font-size:0.8em; color:#666;">(4 hooks merged)</span></p>
-        </div>
+    <p style="font-size:0.55em; color:#666; margin-top:0.3em;">32 old <code>TypeInfo</code> hooks → 16 template hooks via metaprogramming</p>
+    <div class="table-container" style="margin-top:0.4em; font-size:0.48em;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Functionality</th>
+                    <th>Old Hooks (32)</th>
+                    <th>Template Hook</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Set array length</td>
+                    <td><code>_d_arraysetlengthT</code>, <code>_d_arraysetlengthiT</code></td>
+                    <td><code>_d_arraysetlengthT</code></td>
+                </tr>
+                <tr>
+                    <td>Append arrays</td>
+                    <td><code>_d_arrayappendT</code></td>
+                    <td><code>_d_arrayappendT</code></td>
+                </tr>
+                <tr>
+                    <td>Append elements</td>
+                    <td><code>_d_arrayappendcTX</code></td>
+                    <td><code>_d_arrayappendcTX</code></td>
+                </tr>
+                <tr>
+                    <td>Construct arrays</td>
+                    <td><code>_d_arrayctor</code>, <code>_d_arraysetctor</code></td>
+                    <td><code>_d_arrayctor</code></td>
+                </tr>
+                <tr>
+                    <td>Assign arrays</td>
+                    <td><code>_d_arrayassign</code>, <code>_d_arrayassign_l</code>, <code>_d_arrayassign_r</code></td>
+                    <td><code>_d_arrayassign</code></td>
+                </tr>
+                <tr>
+                    <td>Concatenate arrays</td>
+                    <td><code>_d_arraycatT</code>, <code>_d_arraycatnTX</code></td>
+                    <td><code>_d_arraycatnTX</code></td>
+                </tr>
+                <tr>
+                    <td>Array literals</td>
+                    <td><code>_d_arrayliteralTX</code></td>
+                    <td><code>_d_arrayliteralTX</code></td>
+                </tr>
+                <tr>
+                    <td>(Re)allocate arrays</td>
+                    <td><code>_d_arraysetcapacity</code>, <code>_d_arrayshrinkfit</code></td>
+                    <td><code>_d_arraysetcapacity</code>, <code>_d_arrayshrinkfit</code></td>
+                </tr>
+                <tr>
+                    <td>Compare arrays</td>
+                    <td><code>_adEq2</code></td>
+                    <td><code>_equals</code></td>
+                </tr>
+                <tr>
+                    <td>Create class object</td>
+                    <td><code>_d_newclass</code></td>
+                    <td><code>_d_newclass</code></td>
+                </tr>
+                <tr>
+                    <td>Create struct object</td>
+                    <td><code>_d_newitemU</code>, <code>_d_newitemT</code>, <code>_d_newitemiT</code></td>
+                    <td><code>_d_newitemT</code></td>
+                </tr>
+                <tr>
+                    <td>Create arrays</td>
+                    <td><code>_d_newarrayU</code>, <code>_d_newarrayiT</code>, <code>_d_newarrayT</code></td>
+                    <td><code>_d_newarrayT</code></td>
+                </tr>
+                <tr>
+                    <td>Create N-D arrays</td>
+                    <td><code>_d_newarraymiTX</code>, <code>_d_newarraymTX</code>, <code>_d_newarrayOpT</code></td>
+                    <td><code>_d_newarraymTX</code></td>
+                </tr>
+                <tr>
+                    <td>Create exception</td>
+                    <td><code>_d_newThrowable</code></td>
+                    <td><code>_d_newThrowable</code></td>
+                </tr>
+                <tr>
+                    <td>Destroy struct</td>
+                    <td><code>_d_delstruct</code></td>
+                    <td><code>_d_delstruct</code></td>
+                </tr>
+                <tr>
+                    <td>Class casts</td>
+                    <td><code>_d_dynamic_cast</code>, <code>_d_interface_cast</code>, <code>_d_class_cast</code>, <code>_d_paint_cast</code>, <code>_d_isbaseof2</code></td>
+                    <td><code>_d_cast</code></td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </section>
 
